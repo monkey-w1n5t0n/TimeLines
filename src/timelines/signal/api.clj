@@ -1,113 +1,94 @@
-(ns timelines.api
+(ns timelines.signal.api
   (:require
-   ;; [timelines.maths :as maths]
+   [timelines.signal.base-api :as base]
    [timelines.signal.core :refer :all]
+   [timelines.expr.core :as expr]
    [timelines.util.core :as util]
+   [timelines.util.macros :refer [with-ns -> <- <<- <-as]]
    [timelines.protocols :refer :all]
-   #_(
-      [timelines.expression :as expr :refer :all]
-      [clojure.pprint :refer [pprint]]
-      [timelines.types :refer :all]
-      [timelines.signal :as signal])
-   ))
+   [clojure.pprint :refer [pprint]]))
 
+(defmacro ->map
+  [args]
+  `(hash-map ~@(mapcat #(vector (keyword (name %)) %)
+                       args)))
+;; TODO this isn't being used yet
+(defrecord SigOp [sym kind source-ns])
 
+;; OPERATORS
+(do ;; TODO abstract this?
+;;;; Postmaps
+  (defn + [& args]
+    (apply-postmap {:sym '+ :source-ns 'clojure.core} args))
 
+  (defn - [& args]
+    (apply-postmap {:sym '- :source-ns 'clojure.core} args))
 
+  (defn * [& args]
+    (apply-postmap {:sym '* :source-ns 'clojure.core} args))
 
-;; (defmacro make-sig-op [sym]
-;;   `(fn [& args#]
-;;      (signal (cons '~sym (map graph args#)))))
+  (defn / [& args]
+    (apply-postmap {:sym '/ :source-ns 'clojure.core} args))
 
-;; TODO add support for specific arities other than variadic?
-;; TODO @completeness do better checking for whether the new
-;; signal will be const or not
-(defmacro defop [sym]
-  `(defn ~(util/strip-symbol sym) [& args#]
-     (let [exprs# (map ->expr args#)
-           new-expr# (cons '~sym exprs#)
-           const?# (all-const-sigs? args#)
-           ]
-       (-> (make-signal new-expr#)
-           (assoc :const? const?#)))))
+  (defn mod [& args]
+    (apply-postmap {:sym 'mod :source-ns 'clojure.core} args))
 
+  (def % mod)
 
+  (defn mod1 [sig]
+    (mod sig 1.0))
 
-(comment
-  (defop +)
-  (+ 1 2 t)
+  (def %1 mod1)
 
-  (pprint (macroexpand-1 '(defop +)))
-  (sample-at (+ t 1) 1)
+  (defn sine [& args]
+    (apply-postmap {:sym 'Math/sin} args))
+
+  (def sin sine)
+
+  (defn nth [& args]
+    (apply-postmap {:sym 'nth :source-ns 'clojure.core} args))
+
+  (defn from-list [& args]
+    (apply-postmap {:sym 'from-list
+                    :source-ns 'timelines.signal.base-api}
+                   args))
+
+;;;; Premaps
+  (defn slow [amt sig]
+    (apply-premap sig `(fn [time#] (clojure.core// time# ~amt))))
+
+  (defn fast [amt sig]
+    (apply-premap sig `(fn [time#] (clojure.core/* ~amt time#))))
+
 
   )
 
 
 
+(comment
+  (-> 1
+      (+ (* 2 t))
+      (- 100)
+      (sample-at 4))
+  )
 
 
+;; TODO register ops so that we can introspect
+(comment
+  (def *sig-ops (atom {}))
 
-
-
-
-
-;;;;;;;;;;;;;
-;; Old
-;;;;;;;;;;;;;
-
-;; (deftype Expression-Divider [])
-
-;; (def | (Expression-Divider.))
-;; (def |> (Expression-Divider.))
-;; (def <| (Expression-Divider.))
-
-;; ;; (declare m-to-f fromList slow fast sqr saw sin sine cos cosine wrap01 pi)
-
-;; (do
-;;   (defmacro expr [& body]
-;;     `(quote (~@body)))
-
-;;   (expr
-;;    m-to-f | fromList [1 2 3 4]
-;;    | slow 2
-;;    | sqr
-;;    | * 2 pi t))
-
-;; ;; (some #(instance? Signal %)
-;; ;;       [1 2 3 4])
-
-
-;; ;; Arithmetic Ops
-;; (def sig-func-map
-;;   {'+   sig-add
-;;    '-   sig-sub
-;;    '*   sig-mul
-;;    '/   sig-div
-;;    '%   sig-mod
-;;    'sin sig-sin})
-
-;; ;; (defmacro def-arithmetic-ops []
-;; ;;   (let [defs (for [[sym f] (seq sig-func-map)]
-;; ;;                `(def ~sym ~f))]
-;; ;;     `(do ~@defs)))
-
-
-
-
-
-
-
-
-;; (defn lerp [from to phasor]
-;;   (let [range (- to from)]
-;;     (+ from (* range phasor))))
-
-
-;; (defn bi-to-uni [s]
-;;   )
-
-;; (defn sine-bi [x]
-;;   (maths/sine x))
-
-;; (defn sine-bi [x]
-;;   (maths/sine x))
+  (defn register-sig-op [sym {:keys [kind source-ns]}]
+    (let [op-already-registered? (sym @*sig-ops)]
+      (if (not op-already-registered?)
+        (swap! *sig-ops assoc sym
+               (map->SigOp
+                (->map [sym kind source-ns])))
+        (throw (RuntimeException. (str "Attempt at redifining signal operator " sym "."))))))
+  ;; ;; Convenience macros for defining
+  ;; (defn def-sig-op [sym kind]
+  ;;   (let [op-maker (kind {:postmap #'postmap-op
+  ;;                         :premap  #'premap-op})
+  ;;         source-ns (sym->ns sym)]
+  ;;     (register-sig-op ~sym (->map [kind sym source-ns]))
+  ;;     (def sym (op-maker (ns-resolve 'clojure.core ~sym)))))
+  )

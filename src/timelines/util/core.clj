@@ -2,14 +2,26 @@
   (:require [quil.core :as q]
             [timelines.editor.consts :refer :all]
             [clojure.pprint :refer [pprint]]
+            [clojure.walk :as walk]
             ;; [timelines.parameters :refer :all]
             ;; [quil.middleware :as m]
             ;; [clojure.walk :as w]
             ;; [timelines.utils :refer :all]
             ))
 
-(defn random-point [width height]
+(defn list-contains? [lst element]
+  (some (set [element])
+        lst))
+
+(defn warn [msg]
+  (println (str "Warning: " msg)))
+
+
+(defn random-point-2D [width height]
   [(rand-int width) (rand-int height)])
+
+(defn random-point-3D [width depth height]
+  [(rand-int width) (rand-int depth) (rand-int height)])
 
 (defn with-indices
   "Takes a seq and returns a seq where each element is paired with its index"
@@ -27,36 +39,10 @@
   (reduce-kv (fn [m k v]
     (assoc m k (f v))) {} m))
 
-(defn strip-symbol [sym]
-  (if (qualified-symbol? sym)
-    (-> sym name symbol)
-    sym))
-
-(defn strip-symbols [coll]
-  (clojure.walk/postwalk strip-symbol coll))
 
 ;; NAMESPACE stuff, taken from (the now-deprecated) clojure-contrib, written by Stuart Sierra:
 ;; https://github.com/clojure/clojure-contrib/blob/a6a92b9b3d2bfd9a56e1e5e9cfba706d1aeeaae5/modules/with-ns/src/main/clojure/clojure/contrib/with_ns.clj#L20
 
-(defmacro with-ns
-  "Evaluates body in another namespace.  ns is either a namespace
-  object or a symbol.  This makes it possible to define functions in
-  namespaces other than the current one."
-  [ns & body]
-  `(binding [*ns* (the-ns ~ns)]
-     ~@(map (fn [form] `(eval '~form)) body)))
-
-(defmacro with-temp-ns
-  "Evaluates body in an anonymous namespace, which is then immediately
-  removed.  The temporary namespace will 'refer' clojure.core."
-  [& body]
-  `(try
-    (create-ns 'sym#)
-    (let [result# (with-ns 'sym#
-                    (clojure.core/refer-clojure)
-                    ~@body)]
-      result#)
-    (finally (remove-ns 'sym#))))
 
 (defn fn-arg-count [f]
   (let [m (first (.getDeclaredMethods (class f)))
@@ -68,3 +54,34 @@
    (sequential? form)
    (= (first form) 'fn)
    (instance? clojure.lang.PersistentVector (second form))))
+
+(defn all? [pred col]
+  (and (not (empty? col))
+       (every? pred col)))
+
+
+(defn sym->ns
+  "Returns the ns that a symbol evaluates to in the current ns."
+  [sym]
+  (-> (resolve symbol)
+      symbol
+      namespace
+      symbol
+      find-ns))
+
+(defn resolves-to-current-ns? [sym]
+  (= *ns* (sym->ns sym)))
+
+(defn strip-symbol-ns-qualifiers [sym]
+  (if (qualified-symbol? sym)
+    (-> sym name symbol)
+    sym))
+
+(defn replace-sym [tree from to]
+  (walk/postwalk #(if (= % from) to %)
+                 tree))
+
+(defn strip-all-symbol-ns-qualifiers [coll]
+  (if (coll? coll)
+    (clojure.walk/postwalk strip-symbol-ns-qualifiers coll)
+    (strip-symbol-ns-qualifiers coll)))

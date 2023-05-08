@@ -45,10 +45,11 @@
 (defprotocol P-Symbolic-Apply
   (sym-apply [f-expr args-expr]))
 
+;;;;;;;;;;;;;;;;;;;;;;;
 ;; Signal-related
 (defprotocol P-Bifunctor
-  (fmap-in [this f])
-  (fmap-out [this f])
+  (premap [this f])
+  (postmap [this f])
   (bimap [this f1 f2]))
 
 (defprotocol P-Sig-Func
@@ -186,4 +187,45 @@
   clojure.lang.PersistentVector
   (unbox [this]
     (apply vector (map unbox this)))
+  )
+
+
+(defprotocol P-SymbolicExpression
+  (->expr [this]))
+
+(extend-protocol P-SymbolicExpression
+  Number
+  (->expr [this] this)
+
+  Long
+  (->expr [this] this)
+
+  Integer
+  (->expr [this] this)
+
+  clojure.lang.Ratio
+  (->expr [this] this)
+
+  Double
+  (->expr [this] this)
+
+  Float
+  (->expr [this] this)
+
+  String
+  (->expr [this] this)
+
+  clojure.lang.Keyword
+  (->expr [this] this)
+
+  clojure.lang.Symbol
+  (->expr [this] this)
+
+  clojure.lang.PersistentList
+  (->expr [this]
+    (apply list (map ->expr this)))
+
+  clojure.lang.PersistentVector
+  (->expr [this]
+    (apply vector (map ->expr this)))
   )
