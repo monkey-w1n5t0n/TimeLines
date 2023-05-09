@@ -1,202 +1,251 @@
 (ns timelines.draw.graphics
   (:require [quil.core :as q]
-            [timelines.util.macros :refer [pprint-macroexpand-1]]
+            ;; [clojure.core :as c]
+            [clojure.pprint :refer [pprint]]
+            [clojure.string :as str]
+            [timelines.util.macros :refer [letmap pprint-macroexpand-1]]
             [timelines.signal.core :refer :all]
-            [timelines.signal.api :refer :all]
-            [timelines.protocols :refer [P-Samplable sample-at]]
-            [timelines.util.core :refer :all]))
+            [timelines.signal.api :refer [* +]]
+            ;; [timelines.signal.api :refer :all]
+            [timelines.protocols :refer :all] ; [P-Samplable P-Drawable P-Samplable+Drawable sample-at]
+            [timelines.util.core :refer :all]
+            [timelines.util.core :as util]))
 
-;; PROTOCOLS
-(defprotocol P-Drawable
-  "Draw a static object"
-  (draw [x] [x &opts] "Draw a graphics object."))
+(defn draw-at-now [x]
+  (draw-at x (clojure.core// (q/millis))))
 
-(defprotocol P-Samplable-Drawable
-  (draw-at [this t] "Draw a signal graphics object."))
+;; Colour
+(defn fill [obj col]
+  (assoc obj :fill col))
 
+(defn stroke [obj col]
+  (assoc obj :stroke col))
 
-;;;;;;;;;
-;; Arc
-;;;;;;;;;
+;; Geometric
+(defn scale [obj amt]
+  (if (:scale obj)
+    ;; TODO @dbg should be `(partial * amt)` or `(partial map * amt)`?
+    (update obj :scale (partial map * amt))
+    (assoc obj :scale amt)))
 
-(defrecord Arc [x y w h start stop])
+(defn rotate [obj amt]
+  (if (:rotate obj)
+    (update obj :rotate (partial + amt))
+    (assoc obj :rotate amt)))
 
-(defn arc [x y w h start stop]
-  (->Arc x y w h start stop))
+(defn translate [obj point]
+  (if (:translate obj)
+    (update obj :translate (partial map + point))
+    (assoc obj :translate point)))
 
-(defn draw-arc [{:keys [x y w h start stop] :as arc}]
-  (q/arc x y w h start stop))
+(def effects '(fill stroke scale rotate translate))
 
-(defn sample-arc-at [arc t]
-  (map->Arc (update-map arc #(when % (sample-at % t)))))
+;; NOTE should be called only on sampled shapes
+;; currently enforced by the macro (?)
+(defn apply-effects [obj]
+  (doseq [effect effects]
+    (let [val ((keyword effect)obj)]
+      (when val
+        (apply (ns-resolve 'quil.core effect) (list val))))))
 
-(extend-type Arc
-  P-Drawable
-  (draw [x] (draw-arc x))
+(defn default-sampling-method [obj t]
+  (update-map obj #(when % (sample-at % t))))
 
-  P-Samplable
-  (sample-at [this t] (sample-arc-at this t))
+(defrecord Shape-Entry [shape-name
 
-  P-Samplable-Drawable
-  (draw-at [this t] (-> this (sample-at t) draw)))
+                        sampled-record
+                        sampled-autoconstr ; e.g. ->Sampled-Rect
+                        sampled-api-constr
+                        sampled-draw-method
 
+                        signal-record
+                        signal-autoconstr ; e.g. ->Signal-Rect
+                        signal-api-constr
+                        signal-sample-method
+                        signal-draw-method
 
-;;;;;;;;;
-;; Ellipse
-;;;;;;;;;
+                        api-record
+                        api-constr])
 
-(defrecord Ellipse [x y w h])
+(defn shape-defined-symbols
+  "Example usage:
+  (shape-defined-symbols 'Rect)
+  =>
+  {:shape 'Rect
+   :sampled-record 'Sampled-Rect
+   :sampled-autoconstr '->Sampled-Rect
+   :sampled-api-constr 'sampled-rect
+   :sampled-draw-method 'draw-rect
 
-(defn ellipse [x y w h]
-  (->Ellipse x y w h))
+   :signal-record 'Signal ; the default shape is always a signal
+   :signal-autoconstr '->Signal-Rect
+   :signal-api-constr 'signal-rect
+   :signal-sample-method 'sample-rect-at
+   :signal-draw-method 'draw-rect-at
 
-(defn draw-ellipse [{:keys [x y w h] :as ellipse}]
-  (q/ellipse x y w h))
+   :api-record 'Rect
+   :api-constr 'rect}"
+  [shape-sym]
+  (let [upper-str (name shape-sym)
+        lower-str (str/lower-case upper-str)]
+    (->
+     (letmap shape-name upper-str
 
-(defn sample-ellipse-at [ellipse t]
-  (map->Ellipse (update-map ellipse #(when % (sample-at % t)))))
+             ;; Sampled version
+             sampled-record (str "Sampled-" shape-name)
+             sampled-autoconstr (str "->" sampled-record)
+             sampled-api-constr (str/lower-case sampled-record)
+             ;; sampled-draw-method (str "draw-" sampled-api-constr)
+             sampled-draw-method (str "draw-" lower-str)
 
-(extend-type Ellipse
-  P-Drawable
-  (draw [x] (draw-ellipse x))
+             ;; Signal version
+             signal-record upper-str
+             signal-autoconstr (str "->" signal-record)
+             signal-api-constr (str/lower-case signal-record)
+             signal-sample-method (str "sample-" lower-str "-at")
+             signal-draw-method (str "draw-" lower-str "-at")
 
-  P-Samplable
-  (sample-at [this t] (sample-ellipse-at this t))
+             api-record signal-record
+             api-constr signal-api-constr)
+     (update-map symbol)
+     map->Shape-Entry)))
 
-  P-Samplable-Drawable
-  (draw-at [this t] (-> this (sample-at t) draw)))
+(comment
+  (shape-defined-symbols 'Rect)
+  )
 
+(defmacro defrecord-shape [shape keys sampled-draw-fn & opt-sampling-method]
+  "Example usage: (defrecord-shape Rect [x y w h] (q/rect x y w h))"
+  (let [sampling-method (if (and opt-sampling-method (= 1 (count opt-sampling-method)))
+                          (first opt-sampling-method)
+                          'default-sampling-method)
 
-;;;;;;;;;
-;; Line
-;;;;;;;;;
+        ;; TODECIDE @completeness decide if these should be different
+        sampled-keys keys
+        signal-keys keys
 
-(defrecord Line [p1 p2])
+        {:keys [shape-name
 
-(defn line [p1 p2]
-  (->Line p1 p2))
+                sampled-record
+                sampled-autoconstr
+                sampled-api-constr
+                sampled-draw-method
 
-(defn draw-line [{:keys [p1 p2] :as line}]
-  (q/line p1 p2))
+                signal-record
+                signal-autoconstr
+                signal-api-constr
+                signal-sample-method
+                signal-draw-method
 
-(defn sample-line-at [line t]
-  (map->Line (update-map line #(when % (sample-at % t)))))
+                api-record
+                api-constr]} (shape-defined-symbols shape)]
+    `(do
+       ;; Declare records for sampled and signal versions
+       (defrecord ~sampled-record ~sampled-keys)
+       (defrecord ~signal-record  ~signal-keys)
 
-(extend-type Line
-  P-Drawable
-  (draw [x] (draw-line x))
+       ;; Convenience constructors for creating versions directly (TODECIDE probably not useful)
+       (def ~sampled-api-constr ~sampled-autoconstr)
+       (def ~signal-api-constr ~signal-autoconstr)
 
-  P-Samplable
-  (sample-at [this t] (sample-line-at this t))
+       ;; Sampling method to go from signal -> sampled
+       ;; TODO use specter or something
+       (defn ~signal-sample-method [shape# t#]
+         (-> shape#
+             (update-map #(when % (sample-at % t#)))
+             ~(symbol (str "map->" (name sampled-record)))))
 
-  P-Samplable-Drawable
-  (draw-at [this t] (-> this (sample-at t) draw)))
+       ;; Drawing methods for each (e.g.`draw-rect` and `draw-rect-at` respectively)
+       (defn ~sampled-draw-method [{:keys ~sampled-keys :as this#}]
+         ;; (apply)
+         ~sampled-draw-fn)
 
+       ;; (def ~sampled-draw-method ~draw-sampled-fn)
+       (defn ~signal-draw-method  [shape# t#]
+         (-> shape# (sample-at t#) timelines.protocols/draw))
 
-;;;;;;;;;
-;; Quad
-;;;;;;;;;
+       ;; Implement
+       (extend-type ~sampled-record
+         P-Drawable
+         (draw [this#] (~sampled-draw-method this#)))
 
-(defrecord Quad [p1 p2 p3 p4])
+       (extend-type ~signal-record
+         P-Samplable
+         (sample-at [this# t#] (~signal-sample-method this# t#))
 
-(defn quad [p1 p2 p3 p4]
-  (->Quad p1 p2 p3 p4))
-
-(defn draw-quad [{:keys [p1 p2 p3 p4] :as quad}]
-  (apply q/quad (apply concat [p1 p2 p3 p4])))
-
-(defn sample-quad-at [quad t]
-  (map->Quad (update-map quad #(when % (sample-at % t)))))
-
-(extend-type Quad
-  P-Drawable
-  (draw [x] (draw-quad x))
-
-  P-Samplable
-  (sample-at [this t] (sample-quad-at this t))
-
-  P-Samplable-Drawable
-  (draw-at [this t] (-> this (sample-at t) draw)))
-
-;;;;;;;;;
-;; RECT
-;;;;;;;;;
-;; TODO @completeness add (optional) radius parameters
-(defrecord Rect [x y w h])
-
-;; TODO use other parameters?
-(defn rect [x y w h]
-  (->Rect x y w h))
-
-(defn draw-rect [{:keys [x y w h] :as rect}]
-  (q/rect x y w h))
-
-(defn sample-rect-at [rect t]
-  (map->Rect (update-map rect #(when % (sample-at % t)))))
-
-(extend-type Rect
-  P-Drawable
-  (draw [x] (draw-rect x))
-
-  P-Samplable
-  (sample-at [this t] (sample-rect-at this t))
-
-  P-Samplable-Drawable
-  (draw-at [this t] (-> this (sample-at t) draw)))
-
-
-;;;;;;;;;
-;; Triangle
-;;;;;;;;;
-
-(defrecord Triangle [p1 p2 p3])
-
-(defn triangle [p1 p2 p3]
-  (->Triangle p1 p2 p3))
-
-(defn draw-triangle [{:keys [p1 p2 p3] :as triangle}]
-  (apply q/triangle (apply concat [p1 p2 p3])))
-
-(defn sample-triangle-at [triangle t]
-  (map->Triangle (update-map triangle #(when % (sample-at % t)))))
-
-(extend-type Triangle
-  P-Drawable
-  (draw [x] (draw-triangle x))
-
-  P-Samplable
-  (sample-at [this t] (sample-triangle-at this t))
-
-  P-Samplable-Drawable
-  (draw-at [this t] (-> this (sample-at t) draw)))
-
-
-
-
+         P-Samplable+Drawable
+         (draw-at [this# t#] (-> this# (sample-at t#) draw))))))
 
 
 (comment
-  ;; TODO @dbg
-  (defmacro defrecord-shape [record-name keys draw-fn]
-    (let [record-sym (symbol (clojure.string/lower-case (name record-name)))
-          draw-name (symbol (str "draw-" (name record-name)))
-          sample-name (symbol (str "sample-" (name record-name) "-at"))
-          record-constructor (symbol (str "->" (name record-name)))]
-      `(do
-         (defrecord ~record-name ~keys)
-         (defn ~record-sym ~keys (~record-constructor ~@keys))
-         (defn ~draw-name [{:keys ~keys :as shape}] ~draw-fn)
-         (defn ~sample-name [shape t] (map->~record-name (update-map shape #(when % (sample-at % t)))))
-         (extend-type ~record-name
-           P-Drawable
-           (draw [x] (~draw-name x))
 
-           P-Samplable
-           (sample-at [this t] (~sample-name this t))
+  (-> '(defrecord-shape Rect [x y w h] (q/rect x y w h))
+      macroexpand-1
+      ;; util/strip-symbol-ns-qualifiers
+      pprint)
 
-           P-Samplable-Drawable
-           (draw-at [this t] (-> this (sample-at t) draw))))))
+  )
 
 
-  (pprint-macroexpand-1
-   (defrecord-shape Rect [x y w h] (q/rect x y w h))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;; SHAPES
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;;;;;;;
+  ;; Arc
+;;;;;;;;;
+
+  (defrecord-shape Arc [x y w h start stop]
+    (q/arc x y w h start stop))
+
+;;;;;;;;;
+  ;; Ellipse
+;;;;;;;;;
+
+  (defrecord-shape Ellipse [x y w h]
+    (q/ellipse x y w h))
+
+
+;;;;;;;;;
+  ;; Circle
+;;;;;;;;;
+
+  (defrecord-shape Circle [x y r]
+    (q/ellipse x y r r))
+
+;;;;;;;;;
+  ;; Line
+;;;;;;;;;
+
+  (defrecord-shape Line [p1 p2]
+    (q/line p1 p2))
+
+;;;;;;;;;
+  ;; Quad
+;;;;;;;;;
+
+  (defrecord-shape Quad [p1 p2 p3 p4]
+    (apply q/quad (apply concat [p1 p2 p3 p4])))
+
+;;;;;;;;;
+  ;; RECT
+;;;;;;;;;
+  ;; TODO @completeness add (optional) radius parameters
+
+  (defrecord-shape Rect [x y w h]
+    (q/rect x y w h))
+
+;;;;;;;;;
+  ;; Triangle
+;;;;;;;;;
+
+  (defrecord-shape Triangle [p1 p2 p3]
+    (apply q/triangle (apply concat [p1 p2 p3])))
+
+;;;;;;;;;
+  ;; Text
+;;;;;;;;;
+
+  (defrecord-shape Text [s x y]
+    (q/text s x y))

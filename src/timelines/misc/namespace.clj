@@ -1,7 +1,39 @@
-(ns timelines.namespace
+(ns timelines.misc.namespace
   (:require
    ;; [clojure.math :as math]
    [timelines.signal :as sig]))
+
+(comment
+  (defn all-defined-symbols []
+    (apply concat
+           (for [ns (all-ns)]
+             (map (fn [sym] (symbol (str (ns-name ns)) (str sym)))
+                  (keys (ns-publics ns))))))
+
+  (->> (all-defined-symbols)
+       (drop 380)
+       (take 10)
+       (filter #()))
+
+  (defn all-defined-functions []
+    (apply concat
+           (for [ns (all-ns)]
+             (map (fn [sym] (symbol (str (ns-name ns)) (str sym)))
+                  (filter #(fn? (ns-resolve ns %)) (keys (ns-publics ns)))))))
+
+
+  (defn all-defined-functions []
+    (apply concat
+           (for [ns (all-ns)]
+             (let [publics (ns-publics ns)]
+               (map (fn [sym] (symbol (str (ns-name ns)) (str sym)))
+                    (filter #(fn? (get publics %)) (keys publics)))))))
+
+  (take 20 (all-defined-functions))
+)
+
+
+
 
 
 (defn is-var-of-fn? [v]
@@ -48,6 +80,3 @@
 (sig/defop -)
 (sig/defop *)
 (sig/defop /)
-
-
-(def asig (timelines.signal/Signal. (+ 1 2 sig/t)))

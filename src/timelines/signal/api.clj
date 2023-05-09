@@ -10,13 +10,23 @@
 
 (defmacro ->map
   [args]
-  `(hash-map ~@(mapcat #(vector (keyword (name %)) %)
+  `(hash-map ~@(mapcat #(vector (keyword (name %))
+                                %)
                        args)))
+
 ;; TODO this isn't being used yet
 (defrecord SigOp [sym kind source-ns])
 
 ;; OPERATORS
 (do ;; TODO abstract this?
+;;;; Premaps
+  (defn slow [amt sig]
+    (apply-premap sig `(fn [time#] (clojure.core// time# ~amt))))
+
+  (defn fast [amt sig]
+    (apply-premap sig `(fn [time#] (clojure.core/* ~amt time#))))
+  ;;
+
 ;;;; Postmaps
   (defn + [& args]
     (apply-postmap {:sym '+ :source-ns 'clojure.core} args))
@@ -53,13 +63,8 @@
                     :source-ns 'timelines.signal.base-api}
                    args))
 
-;;;; Premaps
-  (defn slow [amt sig]
-    (apply-premap sig `(fn [time#] (clojure.core// time# ~amt))))
-
-  (defn fast [amt sig]
-    (apply-premap sig `(fn [time#] (clojure.core/* ~amt time#))))
-
+  (defn str [& args]
+    (apply-postmap {:sym 'str :source-ns 'clojure.core} args))
 
   )
 

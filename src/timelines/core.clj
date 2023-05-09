@@ -8,10 +8,16 @@
    [timelines.draw.graphics :refer :all]
    [timelines.editor.core :refer [draw-editor]]))
 
+(def *state (atom {:time 0}))
+
 (defn now []
-  (clojure.core// (q/millis) 1000))
+  (:time @*state))
+
+;; (defn draw-at-now [x]
+;;   (draw-at x (now)))
 
 (defn update-sketch-state [state]
+  ;; (swap! *state conj :time (clojure.core// (q/millis)))
   state)
 
 (defn setup-sketch []
@@ -25,19 +31,25 @@
 
 (defn draw-sketch [state]
   ;; error color
-  (q/background 255 0 0)
-  (q/stroke 0)
-  (q/fill 0)
-  (let [s (str "hello " (sample-at
-                         (from-list ["bob" "dave"]
-                                    (mod1 t))
-                         (now)))]
-    (q/text s 50 80))
+  (q/background 55 0 0)
+  (q/fill 255)
+  (draw-at (rect 100 100 (+ 30 (* 20 (sin t))) 50)
+           (clojure.core// (q/millis) 1000))
+
+
+  (draw-at (text (str "he"
+                      (from-list ["h" "oo" "aoeuth,pr9(99"] (slow 3 (mod1 t)))
+                      (from-list ["  2s" ", -HEEEHEHE" "..."] (slow 2 (mod1 t)))
+                      )
+                 10
+                 20)
+           (clojure.core// (q/millis) 1000))
   )
+
 
 (q/defsketch timelines
   :title "TimeLines"
-  :size [500 500]
+  :size [1000 1000]
   :setup setup-sketch
   :update update-sketch-state
   :draw draw-sketch

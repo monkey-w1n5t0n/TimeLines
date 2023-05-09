@@ -229,3 +229,12 @@
   (->expr [this]
     (apply vector (map ->expr this)))
   )
+
+
+;; PROTOCOLS
+(defprotocol P-Drawable
+  "Draw a static object"
+  (draw [this] "Draw a (non-signal) graphics object."))
+
+(defprotocol P-Samplable+Drawable
+  (draw-at [this t] "Draw a signal graphics object."))
