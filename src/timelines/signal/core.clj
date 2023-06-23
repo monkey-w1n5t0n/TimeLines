@@ -79,6 +79,10 @@
     (->Signal expr
               (not (expr/sigfn? expr)))))
 
+
+
+(make-signal '(fn [t] (+ t 2)))
+
 ;; TODO improve
 (defmacro signal [expr]
   `(if (instance? Signal ~expr)
