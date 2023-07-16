@@ -1,5 +1,12 @@
 (require 'leiningen.core.eval)
 
+(def dependencies
+  '[[org.clojure/clojure "1.11.1"]
+    [org.jetbrains.skija/skija-linux "0.93.1"]
+    [nrepl "1.1.0-alpha1"]
+    [org.typedclojure/typed.clj.runtime "1.0.32"]]
+  )
+
 ;; per-os jvm-opts code cribbed from Overtone
 (def JVM-OPTS
   {:common   []
@@ -76,10 +83,7 @@
 
 (def all-dependencies
   (into ;; Add your non-LWJGL dependencies here
-   '[[org.clojure/clojure "1.11.1"]
-     [org.jetbrains.skija/skija-linux "0.93.1"]
-     [nrepl "1.1.0-alpha1"]
-     ]
+   dependencies
    (LWJGL-deps-with-natives)))
 
 (defproject timelines "0.1.0-SNAPSHOT"

@@ -45,7 +45,7 @@
                      (if-not (seq? expr)
                        expr
                        (if (and (> (count expr) 2)
-                                (list-contains? ['fast 'slow] (first expr)))
+                                (in? ['fast 'slow] (first expr)))
                          `((fn [x#]
                              (~@expr x#)) )
                          expr))

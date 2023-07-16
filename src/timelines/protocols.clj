@@ -231,7 +231,7 @@
   )
 
 
-;; PROTOCOLS
+;; Drawing
 (defprotocol P-Drawable
   "Draw a static object"
   (draw [this] "Draw a (non-signal) graphics object."))

@@ -1,6 +1,5 @@
 (ns timelines.util.core
-  (:require [quil.core :as q]
-            [timelines.editor.consts :refer :all]
+  (:require [timelines.editor.consts :refer :all]
             [clojure.pprint :refer [pprint]]
             [clojure.walk :as walk]
             ;; [timelines.parameters :refer :all]
@@ -8,6 +7,11 @@
             ;; [clojure.walk :as w]
             ;; [timelines.utils :refer :all]
             ))
+
+(defn in?
+  "true if coll contains elm"
+  [coll elm]
+  (some #(= elm %) coll))
 
 (defn list-contains? [lst element]
   (some (set [element])
