@@ -5,7 +5,13 @@
              [timelines.protocols :refer [draw]]
              ))
 
+(-> (rect 80 50 20 50) :paint)
+(color r 0xFFCC3333)
+
 (defn draw-screen []
   (let [r (rect 80 50 20 50)]
-    (draw r
-     #_(color r 0xFFCC3333))))
+    (draw
+     (paint r
+            (make-paint
+             (r 0xFFCC3333)
+             3)))))
