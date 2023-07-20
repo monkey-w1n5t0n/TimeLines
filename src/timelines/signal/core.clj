@@ -1,6 +1,7 @@
 (ns timelines.signal.core
   (:require [timelines.util.core :as util]
-            [timelines.protocols :refer :all]
+            [timelines.protocols :refer [P-Samplable P-Bifunctor P-SymbolicExpression
+                                         sample-at postmap premap ->expr]]
             [timelines.expr.core :as expr]
             ;; [timelines.signal.api :refer :all]
             ;; [timelines.expr.core :as expr :refer :all]
@@ -8,6 +9,16 @@
             [timelines.types :refer :all]
             ;; [timelines.signal :as signal]
             ))
+
+
+(comment
+
+  TESTS
+
+  (sample-at t 3.14)
+
+  )
+
 
 ;; TODO operators updating parameters such as :range, :min, :max etc
 
@@ -80,11 +91,12 @@
               (not (expr/sigfn? expr)))))
 
 
-
-(make-signal '(fn [t] (+ t 2)))
+(comment
+  (make-signal '(fn [t] (+ t 2))))
 
 ;; TODO improve
 (defmacro signal [expr]
+  (assert (= (first expr) 'fn))
   `(if (instance? Signal ~expr)
      (make-signal ~expr)
      (make-signal '~expr)))
@@ -109,12 +121,28 @@
     (instance? Signal x) (:const? x)
     :else true))
 
-;; TODO take into account expressions like (fn [t] 5), which should be considered const
-(defn var-sig? [x]
-  (and (instance? Signal x)
-       (not (:const? x))
-       x))
+;; TODO
+(defn const? [x]
+  (cond
+    (instance? Signal x) (const-sig? x)
+    (associative? x) (every? const? (vals x))
+    :else true))
 
+
+(comment
+
+  (loop [[k v] ]
+    (println (str k " " v)))
+  )
+
+(every? pos? (vals {:x -1 :y 2}))
+
+
+;; TODO @completeness take into account expressions like (fn [t] 5), which should be considered const
+(defn var-sig? [x]
+  (and x
+       (instance? Signal x)
+       (not (:const? x))))
 
 (defn process-postmap-arg [arg new-time-arg-sym]
   (cond

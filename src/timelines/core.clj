@@ -3,8 +3,10 @@
    [nrepl.server :as nrepl]
    [clojure.core.typed :as t]
    [timelines.protocols :refer [draw]]
-   [timelines.globals :refer [*global-canvas]]
-   [timelines.api-test :refer [draw-screen]]
+   [timelines.globals :refer [*global-canvas screen-width screen-height]]
+   [timelines.api-test :as api]
+   #_[timelines.draw.graphics :refer [rect]]
+   [timelines.draw.utils :refer [color]]
    )
 
   (:import
@@ -14,36 +16,7 @@
    [org.lwjgl.system MemoryUtil])
   )
 
-
 (set! *warn-on-reflection* true)
-
-(defn color [^long l]
-  (.intValue (Long/valueOf l)))
-
-(def *rect-color (atom (color 0xFFCC3333)))
-
-
-#_(defn draw-canvas [^Canvas canvas]
-  ;; (let [paint (Paint.)
-  ;;       path (Path.)]
-  ;;   (.setColor paint (Color/GREEN))
-  ;;   (.moveTo path 10 10)
-  ;;   (.lineTo path 100 200)
-  ;;   (.lineTo path 200 100)
-  ;;   (.close path)
-  ;;   (.drawPath canvas path paint)
-  ;;   )
-
-  ;; (let [paint (doto (Paint.) (.setColor @*rect-color))]
-  ;;   (.translate canvas 320 240)
-  ;;   (.rotate canvas (mod (/ (System/currentTimeMillis) 10) 360))
-  ;;   (.drawRect canvas (Rect/makeXYWH -50 -50 100 100) paint)
-  ;; (.drawText)
-  ;; )
-  (let [r (rect 50 50 20 50)])
-  (draw (color r 0xFFCC3333))
-
-  )
 
 (defn create-window! [width height name]
   (GLFW/glfwCreateWindow width height name MemoryUtil/NULL MemoryUtil/NULL))
@@ -71,11 +44,13 @@
     (GLFW/glfwGetWindowContentScale window x y)
     [(first x) (first y)]))
 
+#_(defn draw-screen []
+  (draw (rect 100 200 300 400)))
+
+
 (defn -main [& args]
   (init-GLFW!)
-  (let [width 640
-        height 480
-        window (create-main-window! width height "Skija LWJGL Demo FLOATING")]
+  (let [window (create-main-window! screen-width screen-height "Skija LWJGL Demo FLOATING")]
 
     (doto (Thread. #(clojure.main/main))
       (.start))
@@ -87,16 +62,18 @@
     (let [context (DirectContext/makeGL)
           fb-id   (GL11/glGetInteger 0x8CA6)
           [scale-x scale-y] (display-scale window)
-          target  (BackendRenderTarget/makeGL (* scale-x width) (* scale-y height) 0 8 fb-id FramebufferFormat/GR_GL_RGBA8)
+          target  (BackendRenderTarget/makeGL (* scale-x screen-width) (* scale-y screen-height) 0 8 fb-id FramebufferFormat/GR_GL_RGBA8)
           surface (Surface/makeFromBackendRenderTarget context target SurfaceOrigin/BOTTOM_LEFT SurfaceColorFormat/RGBA_8888 (ColorSpace/getSRGB))
           canvas  (.getCanvas surface)]
       (.scale canvas scale-x scale-y)
       (reset! *global-canvas canvas)
+      #_(let [draw-thread
+            (future)])
       (loop []
         (when (not (GLFW/glfwWindowShouldClose window))
           (.clear canvas (color 0xFFFFFFFF))
           (let [layer (.save canvas)]
-            (#'draw-screen)
+            (#'api/draw-screen)
             (.restoreToCount canvas layer))
           (.flush context)
           (GLFW/glfwSwapBuffers window)
@@ -118,7 +95,12 @@
       )))
 
 (comment
-  (reset! lwjgl.main/*rect-color (lwjgl.main/color 0xFF33CC33)))
+  (reset! lwjgl.main/*rect-color (lwjgl.main/color 0xFF33CC33))
+
+
+  (-main)
+
+  )
 
 
 ;; (def *state (atom {:time 0}))

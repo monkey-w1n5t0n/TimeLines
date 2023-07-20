@@ -1,6 +1,7 @@
 (ns timelines.protocols
   (:require [clojure.core.reducers :as r]
-            [timelines.util.core :as util]))
+            [timelines.util.core :as util]
+            [clojure.walk :refer [postwalk prewalk]]))
 
 ;; General
 (defprotocol P-Unboxable
@@ -63,6 +64,20 @@
                                 argument is provided, the signal is sampled at that time
                                 and the type of its value is returned.")
   )
+
+;;;; Mapping records of signals
+
+
+;; Main API function
+;; NOTE only needed like this because of record types, a better solution is coming
+;; (defn sample-at [obj t]
+;;   (cond
+;;     (record? obj) (do
+;;                     (println (str "Record obj: " obj))
+;;                     (util/map-record #(sample-at % t) obj) )
+
+;;     :else (sample-at obj t)))
+
 
 (extend-protocol P-Samplable
   Number
@@ -235,6 +250,11 @@
 (defprotocol P-Drawable
   "Draw a static object"
   (draw [this] "Draw a (non-signal) graphics object."))
+
+(extend-protocol P-Drawable
+  clojure.lang.PersistentVector
+  (draw [this] (doseq [x this]
+                 (draw x))))
 
 (defprotocol P-Samplable+Drawable
   (draw-at [this t] "Draw a signal graphics object."))

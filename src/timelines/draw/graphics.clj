@@ -1,17 +1,17 @@
 (ns timelines.draw.graphics
-  (:require ;; [clojure.core :as c]
-   [clojure.pprint :refer [pprint]]
+  (:require
    [clojure.string :as str]
+   [clojure.walk :as walk]
+   [timelines.util.core :as u]
    [timelines.util.macros :refer [letmap pprint-macroexpand-1]]
+   [timelines.util.time :refer [now]]
    [timelines.globals :refer [*global-canvas]]
-   ;; [timelines.signal.core :refer :all]
-   ;; [timelines.signal.api :refer [* +]]
-   ;; [timelines.signal.api :refer :all]
-   [timelines.protocols :refer :all] ; [P-Samplable P-Drawable P-Samplable+Drawable sample-at]
-   [timelines.util.core :refer :all]
-   [timelines.util.time :refer [time]]
+   [timelines.protocols :refer [P-Samplable P-Drawable sample-at draw-at]] ; P-Samplable+Drawable
    [timelines.draw.utils :as draw-utils]
-   [timelines.util.core :as util])
+   [timelines.draw.defaults :refer :all]
+   [timelines.util.macros :as macro]
+   [timelines.draw.macros :refer [defrecord-graphic]]
+   )
  (:import
    [org.jetbrains.skija
     ;; BackendRenderTarget
@@ -28,32 +28,44 @@
    )
   )
 
-(defn draw-at-now [x]
-  (draw-at x (time)))
 
-;; TODO
-(def black nil)
-(def default-color 0xFF333333)
+;; Paints
+(do
+  ;; TODO
+  (def black 0xFF000000)
+  (def blue 0xFF0000ff)
+  (def grey 0xFF333333)
+  (def red 0xFFFF0000)
+  (def default-color red)
 
-(def style-values [:paint-style/fill :paint-style/stroke :paint-style/stroke-and-fill])
+  (def style-values [:paint-style/fill :paint-style/stroke :paint-style/stroke-and-fill])
 
-(def paint-default-params {;; :anti-alias? true
-                           :color default-color
-                           :style (PaintMode/FILL)
-                           :stroke-width 1
-                           ;; :stroke-cap :paint-stroke-cap/round
-                           :alpha 1.0})
+  (def paint-default-params { ;; :anti-alias? true
+                             :color default-color
+                             :style (PaintMode/FILL)
+                             :stroke-width 1
+                             ;; :stroke-cap :paint-stroke-cap/round
+                             :alpha 1.0})
 
 
-(defrecord R-Paint [color alpha style stroke-width stroke-cap])
+  (defrecord-graphic R-Paint [color alpha style stroke-width stroke-cap])
 
-(defn make-paint
-  ([] (map->R-Paint {}))
-  ([color stroke-width & opts]
-   (map->R-Paint
-    {:color color :stroke-width stroke-width}) ))
+  (defn make-paint
+    ([] (map->R-Paint {}))
+    ([color stroke-width & opts]
+     (map->R-Paint
+      {:color color :stroke-width stroke-width}) ))
 
-(def default-paint (map->R-Paint paint-default-params))
+  (def default-paint (map->R-Paint paint-default-params))
+
+  )
+
+
+(comment
+
+  (macro/pprint (defrecord-graphic R-Paint [color alpha style stroke-width stroke-cap]))
+  )
+
 
 (defn paint-color [paint col]
   (assoc paint :color col))
@@ -95,7 +107,7 @@
                     (paint-color 0xFF333333)
                     (paint-stroke-width 2)
                     (paint-style :stroke)
-                    (R-Paint->SKPaint)))
+                    R-Paint->SKPaint))
 
 (defn paint [obj p]
   (assoc obj :paint p))
@@ -103,7 +115,7 @@
 (defn color [obj c]
   (update obj :paint (paint-color c)))
 
-(defrecord R-Rect [x y w h])
+(defrecord-graphic R-Rect [x y w h])
 
 (defn rect [x y w h]
   (map->R-Rect {:x x :y y :w w :h h}))
@@ -119,6 +131,15 @@
                (Rect/makeXYWH x y w h)
                (R-Paint->SKPaint
                 (or paint default-paint)))))
+
+
+
+
+
+(defrecord-graphic SK-TextLine [text font shaping-options])
+
+(defrecord-graphic R-Text [line x y paint])
+
 
 
 
@@ -242,21 +263,21 @@
   (defn default-sampling-method [obj t]
     (update-map obj #(when % (sample-at % t))))
 
-  (defrecord Shape-Entry [shape-name
+  (defrecord-graphic Shape-Entry [shape-name
 
-                          sampled-record
-                          sampled-autoconstr ; e.g. ->Sampled-Rect
-                          sampled-api-constr
-                          sampled-draw-method
+                                  sampled-record
+                                  sampled-autoconstr ; e.g. ->Sampled-Rect
+                                  sampled-api-constr
+                                  sampled-draw-method
 
-                          signal-record
-                          signal-autoconstr ; e.g. ->Signal-Rect
-                          signal-api-constr
-                          signal-sample-method
-                          signal-draw-method
+                                  signal-record
+                                  signal-autoconstr ; e.g. ->Signal-Rect
+                                  signal-api-constr
+                                  signal-sample-method
+                                  signal-draw-method
 
-                          api-record
-                          api-constr])
+                                  api-record
+                                  api-constr])
 
   (defn shape-defined-symbols
     "Example usage:

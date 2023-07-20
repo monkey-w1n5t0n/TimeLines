@@ -1,5 +1,6 @@
 (ns timelines.util.macros
-  (:require [timelines.util.core :refer :all]))
+  (:require [timelines.util.core :refer :all]
+            [clojure.pprint :only [pprint]]))
 
 ;; TODO refactor
 (defmacro defs [& args]
@@ -24,6 +25,7 @@
 ;; (defmacro -> [&forms]
 ;;   ())
 
+;; TODO write documentation about why or how you'd want to use these
 ;; THREADING MACROS
 (defmacro <- [& body]
   `(-> ~@(reverse body)))
@@ -36,20 +38,26 @@
         name (-> body reverse second)]
     `(as-> ~expr ~name ~@(reverse body))))
 
-;; Custom threading macro so that you can write stuff like
-;; (-> t (slow 2))
-;; even though `slow` expects the signal as the last argument, not the first
-(defmacro -> [& exprs]
-  (let [new-exprs (map
+;; TODO @properness this shouldn't be necessary if the idea of a main argument was implemented
+;; TODO @extensibility instead of a hard-coded list of symbols, read from an atom?
+(defmacro ->
+  "Custom threading macro so that you can write stuff like `(-> t (slow 2))`
+  even though `slow` expects the signal as the last argument, not the first"
+  [& exprs]
+  (let [special-fns (quote [fast slow])
+        new-exprs (map
                    (fn [expr]
-                     (if-not (seq? expr)
+                     (cond
+                       ;; Single symbol
+                       (not (seq? expr))
                        expr
-                       (if (and (> (count expr) 2)
-                                (in? ['fast 'slow] (first expr)))
-                         `((fn [x#]
-                             (~@expr x#)) )
-                         expr))
-                     )
+
+                       ;; Function call
+                       (and (> (count expr) 2)
+                            (in? special-fns))
+                       `((fn [x#]
+                           (~@expr x#)) )
+                       :else expr))
                    exprs)]
     `(clojure.core/-> ~@new-exprs)))
 
@@ -93,3 +101,6 @@
                                                 node))
                                             expanded-expr)]
     `(clojure.pprint/pprint ~cleaned-expr)))
+
+(defmacro pprint [expr]
+  `(clojure.pprint/pprint (macroexpand-1 '~expr)))

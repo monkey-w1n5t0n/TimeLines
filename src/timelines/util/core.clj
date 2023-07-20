@@ -1,5 +1,6 @@
 (ns timelines.util.core
   (:require [timelines.editor.consts :refer :all]
+            [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
             [clojure.walk :as walk]
             ;; [timelines.parameters :refer :all]
@@ -19,7 +20,6 @@
 
 (defn warn [msg]
   (println (str "Warning: " msg)))
-
 
 (defn random-point-2D [width height]
   [(rand-int width) (rand-int height)])
@@ -89,3 +89,29 @@
   (if (coll? coll)
     (clojure.walk/postwalk strip-symbol-ns-qualifiers coll)
     (strip-symbol-ns-qualifiers coll)))
+
+
+  (defn record->map-constructor-fn [record]
+    (let [record-name (-> record type .getName (str/split #"\.") last)]
+      (->> record-name (str "map->") symbol resolve)))
+
+  ;; TODO @completeness some way to tell whether f should be passed both the k and v or just the v?
+  ;; having the k might be useful in determining what to do with the v
+;; TODO @performance there has got to be a better way that doesn't create a billion intermediate objects...
+#_(defn map-record [f record]
+  (println (str "map-record, f: " f "\nrecord:" record))
+  (let [constructor-fn (record->map-constructor-fn record)]
+    (->> record
+         (map (fn [[k v]]
+                [k (f v)]))
+         flatten
+         (apply hash-map)
+         constructor-fn)))
+
+(defn map-record [f record]
+  (loop [acc record
+         keys (keys record)]
+    (if (empty? keys)
+      acc
+      (recur (update acc (first keys) f)
+             (rest keys)))))

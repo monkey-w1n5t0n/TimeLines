@@ -14,6 +14,7 @@
 
   )
 
+
 (defn color [^long l]
   (.intValue (Long/valueOf l)))
 
