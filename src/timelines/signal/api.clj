@@ -4,7 +4,7 @@
    [timelines.signal.core :refer :all]
    [timelines.expr.core :as expr]
    [timelines.util.core :as util]
-   [timelines.util.macros :refer [with-ns -> <- <<- <-as]]
+   [timelines.util.macros :refer [with-ns <- <<- <-as]] ;; ->
    [timelines.protocols :refer :all]
    [clojure.pprint :refer [pprint]]))
 
@@ -14,6 +14,7 @@
                                 %)
                        args)))
 
+
 ;; TODO this isn't being used yet
 (defrecord SigOp [sym kind source-ns])
 
@@ -22,17 +23,19 @@
 ;;;; Premaps
   (defn slow [amt sig]
     (if (var-sig? amt)
+      ;; Signal amt
       (let [sig-fn-expr (:expr amt)]
         (apply-premap sig `(fn [time#] (clojure.core// time#
                                                       (~sig-fn-expr time#)))))
+      ;; Static amt
       (apply-premap sig `(fn [time#] (clojure.core// time# ~amt)))))
 
-  (comment
-    (-> (slow (+ 1 t) t) clojure.pprint/pprint)
-    )
-
   (defn fast [amt sig]
-    (apply-premap sig `(fn [time#] (clojure.core/* ~amt time#))))
+    (if (var-sig? amt)
+      (let [sig-fn-expr (:expr amt)]
+        (apply-premap sig `(fn [time#] (clojure.core/* time#
+                                                      (~sig-fn-expr time#)))))
+      (apply-premap sig `(fn [time#] (clojure.core/* ~amt time#)))))
   ;;
 
   ;; TODO
@@ -62,8 +65,13 @@
 
   (def %1 mod1)
 
+  ;; TODO @properness there's got to be a better way...
+  ;; can't find out how to properly resolve Math/sin
+  (defn sine-impl [x]
+    (Math/sin x))
+
   (defn sine [& args]
-    (apply-postmap {:sym 'Math/sin} args))
+    (apply-postmap {:sym 'sine-impl} args))
 
   (def sin sine)
 
@@ -78,16 +86,47 @@
   (defn str [& args]
     (apply-postmap {:sym 'str :source-ns 'clojure.core} args))
 
+  (defn int [& args]
+    (apply-postmap {:sym 'int :source-ns 'clojure.core} args))
+
+
   )
 
+
+;; convenience arithmetic
+(do
+  (def pi Math/PI)
+
+  (def twoPi (* 2 pi))
+
+  (defn half [x] (/ x 2))
+  (defn third [x] (/ x 3))
+  (defn quarter [x] (/ x 4))
+  (defn eighth [x] (/ x 8))
+
+  (defn double [x] (* x 2))
+  (defn triple [x] (* x 3))
+
+  )
 
 
 (comment
-  (-> 1
-      (+ (* 2 t))
-      (- 100)
-      (sample-at 4))
+  (+ 1 t)
   )
+
+;; Misc API functions
+(do
+  (defn sine01 [x]
+    (+ 0.5 (* 0.5 (sine x))))
+
+  (defn scale
+    [min max sig]
+    (+ min (* sig (- max min))))
+
+  )
+
+
+
 
 
 ;; TODO register ops so that we can introspect

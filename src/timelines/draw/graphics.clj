@@ -50,11 +50,20 @@
 ;; Paints
 (do
   ;; TODO
+  (def white 0xFFFFFFFF)
   (def black 0xFF000000)
   (def blue 0xFF0000ff)
   (def grey 0xFF333333)
   (def red 0xFFFF0000)
   (def default-color red)
+
+  (def palette-red        0xFFE63946)
+  (def palette-white      0xFFA8DADC)
+  (def palette-blue-light 0xFFA8DADC)
+  (def palette-blue-medium     0xFF457B9D)
+  (def palette-blue-dark       0xFF1D3557)
+
+  (def default-color palette-white)
 
   (def style-values [:paint-style/fill :paint-style/stroke :paint-style/stroke-and-fill])
 
@@ -68,69 +77,78 @@
 
   (defrecord-graphic R-Paint [color alpha style stroke-width stroke-cap])
 
+  (def default-stroke-width 1)
+
+  (defn paint-style
+    "Style keyword must be qualified, e.g. :paint-style/fill"
+    [paint s]
+    (assoc paint :style
+           (case s
+             :fill (PaintMode/FILL)
+             :stroke (PaintMode/STROKE)
+             :else (paint-default-params :style))))
+
+  (defn paint-color [paint col]
+    (assoc paint :color col))
+
+  (defn paint-alpha [paint a]
+    (assoc paint :alpha a))
+
+
+
+  (defn paint-stroke-width
+    [paint sw]
+    (assoc paint :stroke-width sw))
+
+  (defn paint-stroke-cap
+    "Stroke cap keyword must be qualified, e.g. :paint-stroke-cap/round"
+    [paint sc]
+    (assoc paint :stroke-cap sc))
+
+
   (defn make-paint
     ([] (map->R-Paint {}))
     ([color]
      (map->R-Paint {:color color}))
-    ([color & opts]
+    ([color style]
+     (->
+      (map->R-Paint {:color color})
+      (paint-style style)))
+    ([color style stroke-width]
+     (-> (map->R-Paint {:color color})
+         (paint-style style)
+         (paint-stroke-width stroke-width)))
+    ([color style stroke-width & opts]
      (map->R-Paint
-      {:color color :opts opts}) ))
+      {:color color :opts opts})))
 
   (def default-paint (map->R-Paint paint-default-params))
 
 
-(defn paint-color [paint col]
-  (assoc paint :color col))
 
-(defn paint-alpha [paint a]
-  (assoc paint :alpha a))
-
-(defn paint-style
-  "Style keyword must be qualified, e.g. :paint-style/fill"
-  [paint s]
-  (assoc paint :style
-         (case s
-           :fill (PaintMode/FILL)
-           :stroke (PaintMode/STROKE)
-           :else (paint-default-params :style))))
-
-(defn paint-stroke-width
-  [paint sw]
-  (assoc paint :stroke-width sw))
-
-(defn paint-stroke-cap
-  "Stroke cap keyword must be qualified, e.g. :paint-stroke-cap/round"
-  [paint sc]
-  (assoc paint :stroke-cap sc))
+  (defn R-Paint->SKPaint
+    "Make an actual SKPaint Java object from a Clojure R-Paint record"
+    [{:keys [color style stroke-width alpha] :as paint}]
+    (doto (Paint.)
+      (.setColor (draw-utils/color (or color (paint-default-params :color))))
+      (.setStrokeWidth (or stroke-width (paint-default-params :stroke-width)))
+      (.setMode #_({:stroke (PaintMode/STROKE)
+                    :fill  (PaintMode/FILL)})
+                (or style (paint-default-params :style)))
+      (.setAlphaf (or alpha (paint-default-params :alpha)))))
 
 
+  (def test-paint (-> (make-paint)
+                      (paint-color 0xFF333333)
+                      (paint-stroke-width 2)
+                      (paint-style :stroke)
+                      R-Paint->SKPaint))
 
-(defn R-Paint->SKPaint
-  "Make an actual SKPaint Java object from a Clojure R-Paint record"
-  [{:keys [color style stroke-width alpha] :as paint}]
-  (doto (Paint.)
-    (.setColor (draw-utils/color (or color (paint-default-params :color))))
-    (.setStrokeWidth (or stroke-width (paint-default-params :stroke-width)))
-    (.setMode (or style (paint-default-params :style)))
-    (.setAlphaf (or alpha (paint-default-params :alpha)))))
+  (defn paint [obj p]
+    (assoc obj :paint p))
 
-
-(def test-paint (-> (make-paint)
-                    (paint-color 0xFF333333)
-                    (paint-stroke-width 2)
-                    (paint-style :stroke)
-                    R-Paint->SKPaint))
-
-(defn paint [obj p]
-  (assoc obj :paint p))
-
-(defn color [obj c]
-  (update obj :paint (paint-color c)))
-
-
-
-
-  )
+  (defn color [obj c]
+    (update obj :paint (paint-color c))))
 
 
 
@@ -197,7 +215,7 @@
 
   (def default-font (load-font "fonts/FiraCode-Regular.ttf"))
 
-  (def default-text-paint (make-paint black))
+  (def default-text-paint (make-paint palette-white))
 
   (def default-text-size 20)
 

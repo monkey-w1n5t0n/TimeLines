@@ -150,6 +150,11 @@
     (let [expr (:expr arg)]
       (expr/sigfn->replace-time-arg expr new-time-arg-sym))
 
+    ;; TODO @correctness figure out what the difference between (const? ...) and (const-sig? ...) should be
+    (and (instance? Signal arg)
+         (:const? arg))
+    (:expr arg)
+
     ;; TODO do this properly instead of separate cases for each type
     (instance? clojure.lang.PersistentVector arg)
     (into [] (map #(process-postmap-arg % new-time-arg-sym) arg))
@@ -163,25 +168,22 @@
 ;; TEST THIS
 ;;;;;;;;;;;;;;;
 
-
 ;; TODO accept <op> to be a map with further info
 ;; e.g. arity, min-max etc
 (defn apply-postmap [{:keys [sym source-ns] :as op} args]
-  (if (util/all? const-sig? args)
-    ;; TODO write this better
-    ;; need to "unbox" all signals and leave everything else as-is
-    (let [exprs (map ->expr args)]
-      (make-signal `(~sym ~@exprs)))
-    (let [qualified-sym (if source-ns
-                          (ns-resolve source-ns sym)
-                          sym)
-          new-time-sym (gensym "time_")
-          new-args (map #(process-postmap-arg % new-time-sym) args)
-          ;; TODO produce this as persistent list directly?
-          new-expr (->> `(fn [~new-time-sym] (~qualified-sym ~@new-args))
-                        (into '())
-                        reverse)]
-      (make-signal new-expr))))
+  (let [qualified-sym (ns-resolve (or source-ns *ns*) sym)]
+    (if (util/all? const-sig? args)
+      ;; TODO write this better
+      ;; need to "unbox" all signals and leave everything else as-is
+      (let [exprs (map ->expr args)]
+        (make-signal `(~qualified-sym ~@exprs)))
+      (let [new-time-sym (gensym "time_")
+            new-args (map #(process-postmap-arg % new-time-sym) args)
+            ;; TODO produce this as persistent list directly?
+            new-expr (->> `(fn [~new-time-sym] (~qualified-sym ~@new-args))
+                          (into '())
+                          reverse)]
+        (make-signal new-expr)))))
 
 (defn apply-premap [sig time-fn]
   (if (const-sig? sig)
@@ -194,6 +196,17 @@
                         (into '())
                         reverse)]
       (make-signal new-expr))))
+
+
+(comment
+  f   = (fn [t] (+ 1 t))
+  sig = (fn [t] (sin t))
+
+  premap =
+        (fn [t] (+ 1 (+ 1 t)))
+
+  )
+
 
 ;; TODO figure out how to define this for varargs
 ;; (defrecord Postmap-Op [op-sym docstr]

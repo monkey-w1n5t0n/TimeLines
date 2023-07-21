@@ -84,6 +84,13 @@
     (-> this var-get (sample-at t)))
 
 
+  clojure.lang.ArraySeq
+  (sample-at [this t]
+    (into (empty this)
+          (map #(sample-at % t)
+               this)))
+
+
   clojure.lang.PersistentArrayMap
   (sample-at [this t]
     (into {} (for [[k v] this]
