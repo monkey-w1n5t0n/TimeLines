@@ -65,10 +65,14 @@
           target  (BackendRenderTarget/makeGL (* scale-x screen-width) (* scale-y screen-height) 0 8 fb-id FramebufferFormat/GR_GL_RGBA8)
           surface (Surface/makeFromBackendRenderTarget context target SurfaceOrigin/BOTTOM_LEFT SurfaceColorFormat/RGBA_8888 (ColorSpace/getSRGB))
           canvas  (.getCanvas surface)]
+      ;; Flipping coordinate system
+      ;; (.scale canvas 1 -1)
+      ;; (.translate canvas 0 (- screen-height))
+      ;; Continue...
       (.scale canvas scale-x scale-y)
       (reset! *global-canvas canvas)
       #_(let [draw-thread
-            (future)])
+              (future)])
       (loop []
         (when (not (GLFW/glfwWindowShouldClose window))
           (.clear canvas (color 0xFFFFFFFF))

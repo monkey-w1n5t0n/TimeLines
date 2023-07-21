@@ -54,7 +54,7 @@
 
                        ;; Function call
                        (and (> (count expr) 2)
-                            (in? special-fns))
+                            (in? special-fns (first expr)))
                        `((fn [x#]
                            (~@expr x#)) )
                        :else expr))

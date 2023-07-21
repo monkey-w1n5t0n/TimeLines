@@ -78,8 +78,17 @@
 
 ;;     :else (sample-at obj t)))
 
-
 (extend-protocol P-Samplable
+  clojure.lang.Var
+  (sample-at [this t]
+    (-> this var-get (sample-at t)))
+
+
+  clojure.lang.PersistentArrayMap
+  (sample-at [this t]
+    (into {} (for [[k v] this]
+               [k (sample-at v t)])))
+
   Number
   (sample-at [this _] this)
   (signal-type
@@ -243,6 +252,7 @@
   clojure.lang.PersistentVector
   (->expr [this]
     (apply vector (map ->expr this)))
+
   )
 
 
@@ -254,7 +264,12 @@
 (extend-protocol P-Drawable
   clojure.lang.PersistentVector
   (draw [this] (doseq [x this]
-                 (draw x))))
+                 (draw x)))
+
+  clojure.lang.PersistentArrayMap
+  (draw [this] (doseq [x (vals this)]
+                 (draw x)))
+  )
 
 (defprotocol P-Samplable+Drawable
   (draw-at [this t] "Draw a signal graphics object."))

@@ -21,11 +21,23 @@
 (do ;; TODO abstract this?
 ;;;; Premaps
   (defn slow [amt sig]
-    (apply-premap sig `(fn [time#] (clojure.core// time# ~amt))))
+    (if (var-sig? amt)
+      (let [sig-fn-expr (:expr amt)]
+        (apply-premap sig `(fn [time#] (clojure.core// time#
+                                                      (~sig-fn-expr time#)))))
+      (apply-premap sig `(fn [time#] (clojure.core// time# ~amt)))))
+
+  (comment
+    (-> (slow (+ 1 t) t) clojure.pprint/pprint)
+    )
 
   (defn fast [amt sig]
     (apply-premap sig `(fn [time#] (clojure.core/* ~amt time#))))
   ;;
+
+  ;; TODO
+  (def fns '[+ - * / mod ])
+
 
 ;;;; Postmaps
   (defn + [& args]

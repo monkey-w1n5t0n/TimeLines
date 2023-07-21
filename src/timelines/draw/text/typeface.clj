@@ -1,6 +1,7 @@
 (ns timelines.draw.text.typeface
   (:require
-    [clojure.java.io :as io])
+   [clojure.java.io :as io]
+   [timelines.globals :refer [*global-canvas]])
   (:import
    [java.io Writer]
    [org.jetbrains.skija
@@ -22,6 +23,11 @@
 (def default-font
   (Font.))
 
+
+(defn draw-string [{:keys [string x y]}]
+  (.drawString @*global-canvas string x y default-font))
+
+(draw-string {:string "Hello" 10 200})
 ;; (defn make-from-path
 ;;   (^Typeface [^String path]
 ;;    (Typeface/makeFromFile path 0))

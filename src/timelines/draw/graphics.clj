@@ -1,5 +1,6 @@
 (ns timelines.draw.graphics
   (:require
+   [clojure.java.io :as io]
    [clojure.string :as str]
    [clojure.walk :as walk]
    [timelines.util.core :as u]
@@ -8,9 +9,9 @@
    [timelines.globals :refer [*global-canvas]]
    [timelines.protocols :refer [P-Samplable P-Drawable sample-at draw-at]] ; P-Samplable+Drawable
    [timelines.draw.utils :as draw-utils]
-   [timelines.draw.defaults :refer :all]
+   ;; [timelines.draw.defaults :refer :all]
    [timelines.util.macros :as macro]
-   [timelines.draw.macros :refer [defrecord-graphic]]
+   #_[timelines.draw.macros :refer [defrecord-graphic]]
    )
  (:import
    [org.jetbrains.skija
@@ -19,8 +20,11 @@
     ;; ColorSpace
     ;; DirectContext
     ;; FramebufferFormat
+    Path
     Paint PaintMode
-    Rect
+    Rect RRect
+    Data
+    Typeface Font
     ;; Surface
     ;; SurfaceColorFormat
     ;; SurfaceOrigin
@@ -28,6 +32,20 @@
    )
   )
 
+;; Macros
+(do
+  (defmacro defrecord-graphic [name params]
+    (let [name (u/strip-symbol-ns-qualifiers name)]
+      `(do
+         (defrecord ~name ~params)
+         (extend-type ~name
+           ~'P-Samplable
+           (~'sample-at [~'this ~'t]
+            (timelines.util.core/map-record #(if % (sample-at % ~'t)
+                                                 nil)
+                                            ~'this))))))
+
+  )
 
 ;; Paints
 (do
@@ -52,19 +70,13 @@
 
   (defn make-paint
     ([] (map->R-Paint {}))
-    ([color stroke-width & opts]
+    ([color]
+     (map->R-Paint {:color color}))
+    ([color & opts]
      (map->R-Paint
-      {:color color :stroke-width stroke-width}) ))
+      {:color color :opts opts}) ))
 
   (def default-paint (map->R-Paint paint-default-params))
-
-  )
-
-
-(comment
-
-  (macro/pprint (defrecord-graphic R-Paint [color alpha style stroke-width stroke-cap]))
-  )
 
 
 (defn paint-color [paint col]
@@ -115,30 +127,116 @@
 (defn color [obj c]
   (update obj :paint (paint-color c)))
 
-(defrecord-graphic R-Rect [x y w h])
 
-(defn rect [x y w h]
-  (map->R-Rect {:x x :y y :w w :h h}))
 
-(comment
-  (def test-rect (rect 50 50 80 60))
+
   )
 
-(extend-type R-Rect
-  P-Drawable
-  (draw [{:keys [x y w h paint]}]
-    (.drawRect @*global-canvas
-               (Rect/makeXYWH x y w h)
-               (R-Paint->SKPaint
-                (or paint default-paint)))))
 
 
 
 
 
-(defrecord-graphic SK-TextLine [text font shaping-options])
+(comment
 
-(defrecord-graphic R-Text [line x y paint])
+  (macro/pprint (defrecord-graphic R-Paint [color alpha style stroke-width stroke-cap]))
+  )
+
+
+;; Rects
+(do
+
+  (defrecord-graphic R-Rect [x y w h r])
+
+  (defn rect
+    ([x y w h]
+     (map->R-Rect {:x x :y y :w w :h h}))
+    ([x y w h r]
+     (map->R-Rect {:x x :y y :w w :h h :r r}))
+    ;; ([x y w h r1 r2]
+    ;;  (map->R-Rect {:x x :y y :w w :h h :r1 r1 :r2 r2}))
+    )
+
+  (defn radius [obj r]
+    (assoc obj :r r)
+    #_([obj r1 r2]
+       (assoc obj :r1 r1 :r2 r2))
+    )
+
+  (comment
+    (def test-rect (rect 50 50 80 60))
+    )
+
+  (extend-type R-Rect
+    P-Drawable
+    (draw [{:keys [x y w h paint r]}]
+      (let [paint (R-Paint->SKPaint
+                   (or paint default-paint))
+            rounded? r]
+        (if rounded?
+          ;; Rounded
+          (.drawRRect @*global-canvas
+                      (RRect/makeXYWH x y w h r)
+                      paint)
+          ;; Regular
+          (.drawRect @*global-canvas
+                     (Rect/makeXYWH x y w h)
+                     paint)))))
+  )
+
+
+;; Text
+(do
+
+  (defn load-font [path]
+    (Font.
+     (with-open [is (io/input-stream (io/resource path))]
+       (let [bytes (.readAllBytes is)]
+         (with-open [data (Data/makeFromBytes bytes)]
+           (Typeface/makeFromData data 0))))))
+
+  (def default-font (load-font "fonts/FiraCode-Regular.ttf"))
+
+  (def default-text-paint (make-paint black))
+
+  (def default-text-size 20)
+
+  (defn font-size [text s]
+    (assoc text :size s))
+
+  (defrecord-graphic R-Text [text x y size paint font])
+
+  (defn make-text
+    ([t x y]       (->R-Text t x y default-text-paint default-font))
+    ([t x y s]     (->R-Text t x y s default-text-paint default-font))
+    ([t x y s p]   (->R-Text t x y s p default-font))
+    ([t x y s p f] (->R-Text t x y s p f))
+    )
+
+  (def text make-text)
+
+  (extend-type R-Text
+    P-Drawable
+    (draw [{:keys [text x y paint font size]}]
+      (let [paint (R-Paint->SKPaint paint)]
+        (.drawString @*global-canvas text (float x) (float y) (.setSize font size) paint)))))
+
+
+(do
+
+  (extend-protocol P-Samplable
+    org.jetbrains.skija.PaintMode
+    (sample-at [this _]
+      this)
+
+    org.jetbrains.skija.Font
+    (sample-at [this _]
+      this)
+
+    )
+
+
+  )
 
 
 
