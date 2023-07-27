@@ -10,15 +10,11 @@
             ;; [timelines.signal :as signal]
             ))
 
-
 (comment
 
   TESTS
 
-  (sample-at t 3.14)
-
-  )
-
+  (sample-at t 3.14))
 
 ;; TODO operators updating parameters such as :range, :min, :max etc
 
@@ -30,21 +26,20 @@
   ;; example API
   - (premap  t (+ 3))
   -> '(fn [t] (-> t
-                 (+ 3)
-                 ((fn [t0] t0))))
+                  (+ 3)
+                  ((fn [t0] t0))))
 
   - (postmap t (+ 3))
   -> '(fn [t] (-> t
-                 ((fn [t0] t0))
-                 (+ 3)))
+                  ((fn [t0] t0))
+                  (+ 3)))
 
   (premap (sine t) (/ 2)) ->
   -> (fn [t] (-> t
-                (/ 2)
-                ((fn [t1] (sine t1)))))
+                 (/ 2)
+                 ((fn [t1] (sine t1)))))
 
-  (premap)
-  )
+  (premap))
 
 ;; TODO a signal should be const if e.g time is multiplied by 0
 ;; or replaced by a const
@@ -55,7 +50,7 @@
   (sample-at [this time]
     (if const?
       (eval expr)
-      ((eval expr) time)) )
+      ((eval expr) time)))
 
   ;; FUNCTION
   clojure.lang.IFn
@@ -78,9 +73,7 @@
           (postmap post-fn))))
 
   P-SymbolicExpression
-  (->expr [this] expr)
-  )
-
+  (->expr [this] expr))
 
 ;; TODO abstract const expr checking into its own function
 ;; TODO test with postmap ops
@@ -89,7 +82,6 @@
     expr
     (->Signal expr
               (not (expr/sigfn? expr)))))
-
 
 (comment
   (make-signal '(fn [t] (+ t 2))))
@@ -105,7 +97,7 @@
   `(def ~name (signal ~expr)))
 
 ;; NOTE the most important signal
-(defsig t (fn [time_0 ] time_0))
+(defsig t (fn [time_0] time_0))
 
 ;; TODO @robustness more thorough checks
 (defn time-arg [{:keys [expr const?] :as sig}]
@@ -128,15 +120,12 @@
     (associative? x) (every? const? (vals x))
     :else true))
 
-
 (comment
 
-  (loop [[k v] ]
-    (println (str k " " v)))
-  )
+  (loop [[k v]]
+    (println (str k " " v))))
 
 (every? pos? (vals {:x -1 :y 2}))
-
 
 ;; TODO @completeness take into account expressions like (fn [t] 5), which should be considered const
 (defn var-sig? [x]
@@ -163,7 +152,6 @@
     (reverse (into '() (map #(process-postmap-arg % new-time-arg-sym) arg)))
 
     :else arg))
-
 
 ;; TEST THIS
 ;;;;;;;;;;;;;;;
@@ -192,21 +180,17 @@
           old-sigfn (:expr sig)
           new-expr (->> `(fn [~new-time-sym]
                            (apply ~old-sigfn
-                                  [(apply ~time-fn [~new-time-sym]) ]))
+                                  [(apply ~time-fn [~new-time-sym])]))
                         (into '())
                         reverse)]
       (make-signal new-expr))))
-
 
 (comment
   f   = (fn [t] (+ 1 t))
   sig = (fn [t] (sin t))
 
   premap =
-        (fn [t] (+ 1 (+ 1 t)))
-
-  )
-
+  (fn [t] (+ 1 (+ 1 t))))
 
 ;; TODO figure out how to define this for varargs
 ;; (defrecord Postmap-Op [op-sym docstr]

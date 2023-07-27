@@ -1,5 +1,6 @@
 (ns timelines.draw.graphics
   (:require
+   [clojure.spec.alpha :as s]
    [clojure.java.io :as io]
    [clojure.string :as str]
    [clojure.walk :as walk]
@@ -11,9 +12,8 @@
    [timelines.draw.utils :as draw-utils]
    ;; [timelines.draw.defaults :refer :all]
    [timelines.util.macros :as macro]
-   #_[timelines.draw.macros :refer [defrecord-graphic]]
-   )
- (:import
+   #_[timelines.draw.macros :refer [defrecord-graphic]])
+  (:import
    [org.jetbrains.skija
     ;; BackendRenderTarget
     ;; Canvas
@@ -28,10 +28,7 @@
     ;; Surface
     ;; SurfaceColorFormat
     ;; SurfaceOrigin
-    ]
-   )
-  )
-
+    ]))
 ;; Macros
 (do
   (defmacro defrecord-graphic [name params]
@@ -41,11 +38,9 @@
          (extend-type ~name
            ~'P-Samplable
            (~'sample-at [~'this ~'t]
-            (timelines.util.core/map-record #(if % (sample-at % ~'t)
-                                                 nil)
-                                            ~'this))))))
-
-  )
+             (timelines.util.core/map-record #(if % (sample-at % ~'t)
+                                                  nil)
+                                             ~'this)))))))
 
 ;; Paints
 (do
@@ -67,13 +62,12 @@
 
   (def style-values [:paint-style/fill :paint-style/stroke :paint-style/stroke-and-fill])
 
-  (def paint-default-params { ;; :anti-alias? true
+  (def paint-default-params {;; :anti-alias? true
                              :color default-color
                              :style (PaintMode/FILL)
                              :stroke-width 1
                              ;; :stroke-cap :paint-stroke-cap/round
-                             :alpha 1.0})
-
+                             :alpha} 1.0)
 
   (defrecord-graphic R-Paint [color alpha style stroke-width stroke-cap])
 
@@ -94,8 +88,6 @@
   (defn paint-alpha [paint a]
     (assoc paint :alpha a))
 
-
-
   (defn paint-stroke-width
     [paint sw]
     (assoc paint :stroke-width sw))
@@ -104,7 +96,6 @@
     "Stroke cap keyword must be qualified, e.g. :paint-stroke-cap/round"
     [paint sc]
     (assoc paint :stroke-cap sc))
-
 
   (defn make-paint
     ([] (map->R-Paint {}))
@@ -124,8 +115,6 @@
 
   (def default-paint (map->R-Paint paint-default-params))
 
-
-
   (defn R-Paint->SKPaint
     "Make an actual SKPaint Java object from a Clojure R-Paint record"
     [{:keys [color style stroke-width alpha] :as paint}]
@@ -134,9 +123,8 @@
       (.setStrokeWidth (or stroke-width (paint-default-params :stroke-width)))
       (.setMode #_({:stroke (PaintMode/STROKE)
                     :fill  (PaintMode/FILL)})
-                (or style (paint-default-params :style)))
+       (or style (paint-default-params :style)))
       (.setAlphaf (or alpha (paint-default-params :alpha)))))
-
 
   (def test-paint (-> (make-paint)
                       (paint-color 0xFF333333)
@@ -150,16 +138,9 @@
   (defn color [obj c]
     (update obj :paint (paint-color c))))
 
-
-
-
-
-
 (comment
 
-  (macro/pprint (defrecord-graphic R-Paint [color alpha style stroke-width stroke-cap]))
-  )
-
+  (macro/pprint (defrecord-graphic R-Paint [color alpha style stroke-width stroke-cap])))
 
 ;; Rects
 (do
@@ -178,12 +159,10 @@
   (defn radius [obj r]
     (assoc obj :r r)
     #_([obj r1 r2]
-       (assoc obj :r1 r1 :r2 r2))
-    )
+       (assoc obj :r1 r1 :r2 r2)))
 
   (comment
-    (def test-rect (rect 50 50 80 60))
-    )
+    (def test-rect (rect 50 50 80 60)))
 
   (extend-type R-Rect
     P-Drawable
@@ -199,9 +178,7 @@
           ;; Regular
           (.drawRect @*global-canvas
                      (Rect/makeXYWH x y w h)
-                     paint)))))
-  )
-
+                     paint))))))
 
 ;; Text
 (do
@@ -228,8 +205,7 @@
     ([t x y]       (->R-Text t x y default-text-paint default-font))
     ([t x y s]     (->R-Text t x y s default-text-paint default-font))
     ([t x y s p]   (->R-Text t x y s p default-font))
-    ([t x y s p f] (->R-Text t x y s p f))
-    )
+    ([t x y s p f] (->R-Text t x y s p f)))
 
   (def text make-text)
 
@@ -238,7 +214,6 @@
     (draw [{:keys [text x y paint font size]}]
       (let [paint (R-Paint->SKPaint paint)]
         (.drawString @*global-canvas text (float x) (float y) (.setSize font size) paint)))))
-
 
 (do
 
@@ -249,81 +224,14 @@
 
     org.jetbrains.skija.Font
     (sample-at [this _]
-      this)
-
-    )
-
-
-  )
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+      this)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; NOTE from here on unused
 (comment
 
-
-
-  ;; NOTE not used
+;; NOTE not used
   (defn color->SKColor [c]
     (draw-utils/color c))
   (def paint->SKPaint-map {:style {:paint-style/fill PaintMode/FILL
@@ -333,7 +241,6 @@
                                    }
                            ;; TODO
                            :stroke-cap {}})
-
 
   (defn make-point [])
 
@@ -364,15 +271,13 @@
       (update obj :translate (partial map + point))
       (assoc obj :translate point)))
 
-
   (def effects '(fill stroke scale rotate translate))
 
-
-  ;; NOTE should be called only on sampled shapes
+;; NOTE should be called only on sampled shapes
   ;; currently enforced by the macro (?)
   (defn apply-effects [obj]
     (doseq [effect effects]
-      (let [val ((keyword effect)obj)]
+      (let [val ((keyword effect) obj)]
         (when val
           (apply (ns-resolve 'quil.core effect) (list val))))))
 
@@ -439,8 +344,7 @@
        map->Shape-Entry)))
 
   (comment
-    (shape-defined-symbols 'Rect)
-    )
+    (shape-defined-symbols 'Rect))
 
   (defmacro defrecord-shape [shape keys sampled-draw-fn & opt-sampling-method]
     "Example usage: (defrecord-shape Rect [x y w h] (q/rect x y w h))"
@@ -504,33 +408,18 @@
            P-Samplable+Drawable
            (draw-at [this# t#] (-> this# (sample-at t#) draw))))))
 
-
   (comment
 
     (-> '(defrecord-shape Rect [x y w h] (.drawRect * x y w h))
         macroexpand-1
         ;; util/strip-symbol-ns-qualifiers
-        pprint)
+        pprint))
 
-    )
-
-
-
-  ;; RECT
+;; RECT
   (defrecord Rect [x y w h]
     P-Drawable
     (draw [this]
       ()))
-
-
-
-
-
-
-
-
-
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; SHAPE-DEFINING MACROS
@@ -550,7 +439,6 @@
 
   (defrecord-shape Ellipse [x y w h]
     (q/ellipse x y w h))
-
 
 ;;;;;;;;;
   ;; Circle
@@ -593,5 +481,4 @@
 ;;;;;;;;;
 
   (defrecord-shape Text [s x y]
-    (q/text s x y))
-  )
+    (q/text s x y)))
