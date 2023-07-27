@@ -67,7 +67,7 @@
                              :style (PaintMode/FILL)
                              :stroke-width 1
                              ;; :stroke-cap :paint-stroke-cap/round
-                             :alpha} 1.0)
+                             :alpha 1.0})
 
   (defrecord-graphic R-Paint [color alpha style stroke-width stroke-cap])
 
