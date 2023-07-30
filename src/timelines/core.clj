@@ -6,15 +6,13 @@
    [timelines.globals :refer [*global-canvas screen-width screen-height]]
    [timelines.api-test :as api]
    #_[timelines.draw.graphics :refer [rect]]
-   [timelines.draw.utils :refer [color]]
-   )
+   [timelines.utils :refer [color]])
 
   (:import
    [org.jetbrains.skija BackendRenderTarget Canvas ColorSpace DirectContext FramebufferFormat Paint Rect Surface SurfaceColorFormat SurfaceOrigin]
    [org.lwjgl.glfw Callbacks GLFW GLFWErrorCallback GLFWKeyCallbackI]
    [org.lwjgl.opengl GL GL11]
-   [org.lwjgl.system MemoryUtil])
-  )
+   [org.lwjgl.system MemoryUtil]))
 
 (set! *warn-on-reflection* true)
 
@@ -29,13 +27,11 @@
     (GL/createCapabilities)
     window))
 
-
 (defn init-GLFW! []
   (.set (GLFWErrorCallback/createPrint System/err))
   (GLFW/glfwInit)
   (GLFW/glfwWindowHint GLFW/GLFW_VISIBLE GLFW/GLFW_FALSE)
-  (GLFW/glfwWindowHint GLFW/GLFW_RESIZABLE GLFW/GLFW_TRUE)
-  )
+  (GLFW/glfwWindowHint GLFW/GLFW_RESIZABLE GLFW/GLFW_TRUE))
 
 ;; TODO what's the type of window?
 (defn display-scale [window]
@@ -45,8 +41,7 @@
     [(first x) (first y)]))
 
 #_(defn draw-screen []
-  (draw (rect 100 200 300 400)))
-
+    (draw (rect 100 200 300 400)))
 
 (defn -main [& args]
   (init-GLFW!)
@@ -95,17 +90,12 @@
 
       (GLFW/glfwTerminate)
       (.free (GLFW/glfwSetErrorCallback nil))
-      (shutdown-agents)
-      )))
+      (shutdown-agents))))
 
 (comment
   (reset! lwjgl.main/*rect-color (lwjgl.main/color 0xFF33CC33))
 
-
-  (-main)
-
-  )
-
+  (-main))
 
 ;; (def *state (atom {:time 0}))
 
@@ -136,32 +126,12 @@
 ;;   ;; ()doseq [i (range 100)]
 ;;   ;; (draw-at
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 ;;   ;;  (rect 100
 ;;   ;;        100
 ;;   ;;        (+ 100 (* 80 (fast 4 (sin t))))
 ;;   ;;        50)
 
-
-
-
-
-
 ;;   ;;  (clojure.core// (q/millis) 1000))
-
-
 
 ;;   (draw-at (text (str ".."
 ;;                       (from-list [",," "...." "..//.." "..//.."] (slow 3 (mod1 t)))
@@ -171,7 +141,6 @@
 ;;                  400)
 ;;         (clojure.core// (q/millis) 1000))
 ;;   )
-
 
 ;; (q/defsketch timelines
 ;;   :title "TimeLines"

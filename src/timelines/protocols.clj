@@ -1,6 +1,6 @@
 (ns timelines.protocols
   (:require [clojure.core.reducers :as r]
-            [timelines.util.core :as util]
+            [timelines.utils :as util]
             [clojure.walk :refer [postwalk prewalk]]))
 
 ;; General
@@ -62,11 +62,9 @@
   (signal-type [this] [this t] "The type of the signal. If only one argument is provided,
                                 the type is assumed to be unchanging over time. If a time
                                 argument is provided, the signal is sampled at that time
-                                and the type of its value is returned.")
-  )
+                                and the type of its value is returned."))
 
 ;;;; Mapping records of signals
-
 
 ;; Main API function
 ;; NOTE only needed like this because of record types, a better solution is coming
@@ -83,13 +81,11 @@
   (sample-at [this t]
     (-> this var-get (sample-at t)))
 
-
   clojure.lang.ArraySeq
   (sample-at [this t]
     (into (empty this)
           (map #(sample-at % t)
                this)))
-
 
   clojure.lang.PersistentArrayMap
   (sample-at [this t]
@@ -217,9 +213,7 @@
 
   clojure.lang.PersistentVector
   (unbox [this]
-    (apply vector (map unbox this)))
-  )
-
+    (apply vector (map unbox this))))
 
 (defprotocol P-SymbolicExpression
   (->expr [this]))
@@ -258,10 +252,7 @@
 
   clojure.lang.PersistentVector
   (->expr [this]
-    (apply vector (map ->expr this)))
-
-  )
-
+    (apply vector (map ->expr this))))
 
 ;; Drawing
 (defprotocol P-Drawable
@@ -275,8 +266,7 @@
 
   clojure.lang.PersistentArrayMap
   (draw [this] (doseq [x (vals this)]
-                 (draw x)))
-  )
+                 (draw x))))
 
 (defprotocol P-Samplable+Drawable
   (draw-at [this t] "Draw a signal graphics object."))

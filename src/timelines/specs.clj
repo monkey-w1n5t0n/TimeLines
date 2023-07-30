@@ -2,7 +2,7 @@
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
             [timelines.signal.core :as sig]
-            [timelines.util.core :as u]))
+            [timelines.utils :as u]))
 
 ;; Helper utils
 (do
@@ -88,4 +88,4 @@ or anything that can be evaluated to one."}
     ;; TODO @completeness add more
     ;; FIXME
     ;; (s/def ::thing )
-    )
+    ))

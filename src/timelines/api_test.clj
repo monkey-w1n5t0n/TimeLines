@@ -2,15 +2,13 @@
   (:require  [clojure.test :as t]
              [clojure.walk :refer [prewalk postwalk]]
              [clojure.stacktrace :as stacktrace]
-             [timelines.draw.graphics :refer :all]
-             [timelines.signal.api :refer :all]
-             [timelines.signal.core :refer :all]
+             [timelines.graphics :refer :all]
+             [timelines.api :refer :all]
+             [timelines.signal :refer :all]
              [timelines.protocols :refer [draw sample-at]]
              [timelines.globals :refer [screen-height screen-width]]
-             [timelines.util.time :refer [now]]
-             [timelines.util.macros :refer [pprint]]
-             ))
-
+             [timelines.time :refer [now]]
+             [timelines.macros :refer [pprint]]))
 
 (comment
   (defmacro defref [name expr]
@@ -23,14 +21,9 @@
   (def a 10)
   (def b 20)
 
-
   (pprint (defref c (+ a b)))
 
-
-
-  (def c (+ #'a #'b))
-
-  )
+  (def c (+ #'a #'b)))
 
 (do
   (def BPM 120)
@@ -58,10 +51,7 @@
     (int (/ t beatDur)))
 
   (def barNum
-    (int (/ t barDur)))
-
-  )
-
+    (int (/ t barDur))))
 
 (defn draw-at [obj t]
   (-> obj (sample-at t) draw))
@@ -85,11 +75,8 @@
   (def browser (-> (rect browser-x browser-y browser-w browser-h)
                    (paint (make-paint palette-blue-medium))))
 
-
   (def amp-expr '(+ 0.5 (* 0.2 (sine01 (* twoPi (slow 2 bar))))))
   (def melody-expr '(from-list [0 0 3 0 2 2 5 12] bar))
-
-
 
   (def amp-sig (eval amp-expr))
   (def melody-sig (eval melody-expr))
@@ -109,8 +96,7 @@
           background (-> (rect node-x node-y node-width node-height 20)
                          (paint node-background-paint))
           parameters
-          [
-           ;; amp
+          [;; amp
            (let [x (+ node-x 10)
                  y (+ node-y 30)]
              [(text ":amp" x y param-size key-paint)
@@ -123,9 +109,8 @@
                  y (+ node-y 100)]
              [(text ":freq" x y param-size key-paint)
               (text (str melody-sig) (+ x 80) y expr-size text-paint)
-              (text (clojure.core/str freq-expr) (+ x 10) (+ y param-size) expr-size text-paint)])
-           ]
-          ]
+              (text (clojure.core/str freq-expr) (+ x 10) (+ y param-size) expr-size text-paint)])]]
+
       [background parameters]))
 
   (def space
@@ -133,36 +118,27 @@
                                (paint (make-paint palette-blue-dark)))]
       [space-background test-node]))
 
-
   (def name (from-list ["Bob" "Dave" "Nick" "Mary" "HeheheheHEHEHEHE"]
                        (mod1 (fast (from-list [1 1 2 3 1 4 3] (mod1 t))
                                    t))))
 
-
-  (def note (from-list [0 0 3 0 5 5 0 8 (from-list [99 99 10] )]))
+  (def note (from-list [0 0 3 0 5 5 0 8 (from-list [99 99 10])]))
 
   (def window [browser
                space
                #_(text (str "Hello"
                             #_(from-list [" " "" " "] bar)
-                            "."
-                            ) (* 100 bar) 100 50)])
+                            ".") (* 100 bar) 100 50)])
 
-
-  ;; (def line-number 128)
+;; (def line-number 128)
   ;; (def file "~/test/path/to/file")
 
   ;; (def modeline [line-number file])
   (def modeline (-> (rect modeline-x modeline-y screen-width modeline-height)
                     (paint (make-paint palette-blue-light))))
 
-  (def scene [
-              window
-              modeline])
-
-  )
-
-
+  (def scene [window
+              modeline]))
 
 (def broken-scene
   [(-> (rect 0 0 screen-width screen-height)
@@ -178,14 +154,10 @@
                              (* twoPi)
                              sine01
                              (+ 0.5)))]
-     (text "BROKEN" text-x text-y text-size text-paint))
-   ])
-
-
+     (text "BROKEN" text-x text-y text-size text-paint))])
 
 (defonce *broken? (atom false))
 (defonce *stacktrace-printed? (atom false))
-
 
 (defn draw-screen []
   (try
