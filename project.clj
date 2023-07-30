@@ -6,7 +6,8 @@
     [nrepl "1.1.0-alpha1"]
     [org.typedclojure/typed.clj.runtime "1.0.32"]
     [org.clojure/test.check "1.1.1"]
-    [org.clojure/core.specs.alpha "0.2.62"]])
+    [org.clojure/core.specs.alpha "0.2.62"]
+    [com.rpl/specter "1.1.4"]])
 
 ;; per-os jvm-opts code cribbed from Overtone
 (def JVM-OPTS
