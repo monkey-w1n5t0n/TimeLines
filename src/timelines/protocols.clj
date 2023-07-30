@@ -1,7 +1,8 @@
 (ns timelines.protocols
   (:require [clojure.core.reducers :as r]
             [timelines.utils :as util]
-            [clojure.walk :refer [postwalk prewalk]]))
+            [clojure.walk :refer [postwalk prewalk]]
+            [clojure.spec.alpha :as s]))
 
 ;; General
 (defprotocol P-Unboxable
@@ -270,3 +271,21 @@
 
 (defprotocol P-Samplable+Drawable
   (draw-at [this t] "Draw a signal graphics object."))
+
+;; Range
+(do
+  (s/def ::range (s/and (s/cat :start number? :end number?)
+                        #(<= (:start %) (:end %))))
+
+  (defprotocol P-Range
+    (range [this])
+    (range-at [this t])
+    (range-at-segment [this {:keys [start end]}]))
+
+  (extend-protocol P-Range
+    clojure.lang.PersistentVector
+    ;; TODO @optimisation shouldn't have to travel the list twice
+    (range [this] [(min this) (max this)])
+    (range-at [this t]
+      (let [sampled (mapv #(sample-at % t) this)]
+        [(min sampled) (max sampled)]))))
