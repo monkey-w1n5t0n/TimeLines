@@ -2,7 +2,9 @@
   (:require [timelines.consts :refer :all]
             [clojure.string :as str]
             [clojure.pprint :refer [pprint]]
-            [clojure.walk :as walk])
+            [clojure.walk :as walk]
+            [timelines.globals :as globals]
+            [clojure.spec.alpha :as s])
   (:import [org.lwjgl.glfw GLFW]))
 
 (defn in?
@@ -52,6 +54,10 @@
     (-> sym name symbol)
     sym))
 
+(def strip-ns        strip-symbol-ns-qualifiers)
+(def strip-symbol    strip-symbol-ns-qualifiers)
+(def strip-symbol-ns strip-symbol-ns-qualifiers)
+
 (defn is-symbolic-fn? [form]
   (and
    (sequential? form)
@@ -100,6 +106,7 @@
            (apply hash-map)
            constructor-fn)))
 
+;; TODO find a better way
 (defn map-record [f record]
   (loop [acc record
          keys (keys record)]
@@ -107,6 +114,23 @@
       acc
       (recur (update acc (first keys) f)
              (rest keys)))))
+
+(defn protocol-fn-names [p]
+  (->> p eval :sigs vals (map :name)))
+
+(defn resolve-sym-in-current-ns
+  "Returns a qualified sym, resolved as it would be in the current *ns*"
+  [sym]
+  (-> sym resolve meta :ns str (str "/" (str sym)) symbol))
+
+(defn which-protocol-belongs? [f]
+  (loop [[p & rest] (into [] @globals/*protocols)]
+    (println p)
+    (if (nil? p)
+      nil
+      (if (in? (protocol-fn-names p) f)
+        p
+        (recur rest)))))
 
 ;;;;;;;;;;;;;;; Drawing & Graphics
 (defn color [^long l]
@@ -118,3 +142,10 @@
         y (make-array Float/TYPE 1)]
     (GLFW/glfwGetWindowContentScale window x y)
     [(first x) (first y)]))
+
+(defn known-behavior? [behavior-name]
+  (and (s/valid? :behavior/name behavior-name)
+       (contains? @globals/*behaviors behavior-name)))
+
+(defn symbol-prepend [pre sym]
+  (->> sym name (str pre) symbol))

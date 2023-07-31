@@ -1,6 +1,8 @@
 (ns timelines.macros
-  (:require [timelines.utils :refer :all]
-            [clojure.pprint :only [pprint]]))
+  (:require [timelines.utils :as u]
+            [clojure.pprint :only [pprint]]
+            [timelines.globals :as globals]
+            [clojure.spec.alpha :as s]))
 
 ;; TODO refactor
 (defmacro defs [& args]
@@ -53,7 +55,7 @@
 
                        ;; Function call
                        (and (> (count expr) 2)
-                            (in? special-fns (first expr)))
+                            (u/in? special-fns (first expr)))
                        `((fn [x#]
                            (~@expr x#)))
                        :else expr))
@@ -103,3 +105,41 @@
 
 (defmacro pprint [expr]
   `(clojure.pprint/pprint (macroexpand-1 '~expr)))
+
+(defmacro defprotocol [& args]
+  (let [{:keys [protocol-name]} (s/conform (s/cat :protocol-name simple-symbol?
+                                                  :rest (s/* any?))
+                                           args)
+        qualified-name (u/resolve-sym-in-current-ns protocol-name)]
+    (swap! globals/*protocols conj qualified-name)
+    (cons 'clojure.core/defprotocol args)))
+
+(s/def ::defgraphic-call
+  (s/cat :name simple-symbol?
+         :params :clojure/arglist
+         :protocol-impls (s/* (s/cat :protocol simple-symbol?
+                                     :impls (s/+ list?)))))
+
+(def default-samplable-impl
+  '(sample-at [this t]
+              (timelines.utils/map-record #(if % (sample-at % t)
+                                               nil)
+                                          this)))
+
+(defmacro defgraphics [& args]
+  (let [{:keys [name params protocol-impls] :as conformed}
+        (s/conform ::defgraphic-call args)]
+    (when (= :clojure.spec.alpha/invalid conformed)
+      (s/explain ::defgraphic-call args)
+      (throw (Exception. "Invalid arguments to defgraphic macro.")))
+    ;; Process impls
+    (let [protocol-impls (mapcat #(concat [(:protocol %)]
+                                          (:impls %))
+                                 protocol-impls)
+          protocol-impls (if-not (u/in? protocol-impls 'P-Samplable)
+                           (concat ['P-Samplable default-samplable-impl] protocol-impls)
+                           protocol-impls)]
+      `(do
+         (defrecord ~name ~params)
+         (extend-type ~name
+           ~@protocol-impls)))))

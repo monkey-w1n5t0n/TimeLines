@@ -2,10 +2,8 @@
   (:require
    [nrepl.server :as nrepl]
    [clojure.core.typed :as t]
-   [timelines.protocols :refer [draw]]
    [timelines.globals :refer [*global-canvas screen-width screen-height]]
-   [timelines.api-test :as api]
-   #_[timelines.draw.graphics :refer [rect]]
+   [timelines.editor :as editor]
    [timelines.utils :refer [color]])
 
   (:import
@@ -40,9 +38,6 @@
     (GLFW/glfwGetWindowContentScale window x y)
     [(first x) (first y)]))
 
-#_(defn draw-screen []
-    (draw (rect 100 200 300 400)))
-
 (defn -main [& args]
   (init-GLFW!)
   (let [window (create-main-window! screen-width screen-height "Skija LWJGL Demo FLOATING")]
@@ -72,7 +67,7 @@
         (when (not (GLFW/glfwWindowShouldClose window))
           (.clear canvas (color 0xFFFFFFFF))
           (let [layer (.save canvas)]
-            (#'api/draw-screen)
+            (#'editor/draw)
             (.restoreToCount canvas layer))
           (.flush context)
           (GLFW/glfwSwapBuffers window)
@@ -97,56 +92,3 @@
 
   (-main))
 
-;; (def *state (atom {:time 0}))
-
-;; (defn now []
-;;   (:time @*state))
-
-;; ;; (defn draw-at-now [x]
-;; ;;   (draw-at x (now)))
-
-;; (defn update-sketch-state [state]
-;;   ;; (swap! *state conj :time (clojure.core// (q/millis)))
-;;   state)
-
-;; (defn setup-sketch []
-;;   (q/frame-rate 60)
-;;   (q/color-mode :rgb)
-;;   (q/text-align :left :center)
-;;   (q/text-size 90)
-;;   ;; (q/text-font
-;;   ;;  (q/create-font "resources/fonts/FiraMono-Regular.ttf" 30 true))
-;;   {})
-
-;; (defn draw-sketch [state]
-;;   ;; error color
-;;   (q/background 55 0 0)
-;;   (q/fill 255)
-
-;;   ;; ()doseq [i (range 100)]
-;;   ;; (draw-at
-
-;;   ;;  (rect 100
-;;   ;;        100
-;;   ;;        (+ 100 (* 80 (fast 4 (sin t))))
-;;   ;;        50)
-
-;;   ;;  (clojure.core// (q/millis) 1000))
-
-;;   (draw-at (text (str ".."
-;;                       (from-list [",," "...." "..//.." "..//.."] (slow 3 (mod1 t)))
-;;                       (from-list ["...." ".. . .. . . ."] (slow 3 (mod1 t)))
-;;                       )
-;;                  10
-;;                  400)
-;;         (clojure.core// (q/millis) 1000))
-;;   )
-
-;; (q/defsketch timelines
-;;   :title "TimeLines"
-;;   :size [1000 1000]
-;;   :setup setup-sketch
-;;   :update update-sketch-state
-;;   :draw draw-sketch
-;;   :features [:keep-on-top]
-;;   :middleware [m/fun-mode])

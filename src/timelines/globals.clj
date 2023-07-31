@@ -4,3 +4,7 @@
 (def screen-width 800)
 
 (def *global-canvas (atom nil))
+
+(def *behaviors (atom {}))
+
+(defonce *protocols (atom #{}))

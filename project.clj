@@ -7,7 +7,8 @@
     [org.typedclojure/typed.clj.runtime "1.0.32"]
     [org.clojure/test.check "1.1.1"]
     [org.clojure/core.specs.alpha "0.2.62"]
-    [com.rpl/specter "1.1.4"]])
+    [com.rpl/specter "1.1.4"]
+    [net.sekao/odoyle-rules "1.1.0"]])
 
 ;; per-os jvm-opts code cribbed from Overtone
 (def JVM-OPTS

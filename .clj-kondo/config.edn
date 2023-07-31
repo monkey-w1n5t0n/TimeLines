@@ -1,2 +1,3 @@
-{:hooks {:macroexpand {timelines.util.macros/letmap core/letmap
-                       timelines.util.macros/defs   core/defs}}}
+{:hooks {:macroexpand {timelines.macros/defgraphics core/defgraphics
+                       timelines.macros/letmap core/letmap
+                       timelines.macros/defs   core/defs}}}

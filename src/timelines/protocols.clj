@@ -1,273 +1,130 @@
 (ns timelines.protocols
   (:require [clojure.core.reducers :as r]
-            [timelines.utils :as util]
+            [timelines.utils :as u]
             [clojure.walk :refer [postwalk prewalk]]
-            [clojure.spec.alpha :as s]))
+            [clojure.spec.alpha :as s]
+            [timelines.macros :as m]
+            [timelines.globals :as globals]))
+
+(def id-types '[Number Long Integer Double Float clojure.lang.Ratio
+                String clojure.lang.Keyword clojure.lang.Symbol])
+
+(defn templated-protocol-impl [protocol types body]
+  (doseq [t types]
+    (eval (list 'extend-protocol protocol t body))))
 
 ;; General
-(defprotocol P-Unboxable
-  (unbox [this] "Unbox a datatype, e.g. to get the graph out of a Signal."))
+(do
 
-;; FUNCTOR
-;; taken from https://github.com/jduey/Functors/blob/master/src/functors.clj
-(defprotocol P-Functor
-  (fmap [coll f]))
+;;;; FUNCTOR
+  ;; taken from https://github.com/jduey/Functors/blob/master/src/functors.clj
+  (defprotocol P-Functor
+    (fmap* [coll f]))
 
-(extend-type clojure.lang.PersistentList
-  P-Functor
-  (fmap [coll f]
-    (list* (into [] (r/map f coll)))))
+  ;; Convenience function because protocols dispatch on the first argument
+  (defn fmap [f obj]
+    (fmap* obj f))
 
-(extend-type clojure.lang.PersistentVector
-  P-Functor
-  (fmap [coll f]
-    (into [] (r/map f coll))))
+  (let [types (->> '[PersistentList PersistentVector ArraySeq]
+                   (map #(u/symbol-prepend "clojure.lang." %)))]
+    (templated-protocol-impl 'P-Unboxable
+                             types
+                             '(fmap* [this f]
+                                     (into (empty this) (r/map f this)))))
 
-(deftype reader-f [v rf f]
-  clojure.lang.IFn
-  (invoke [_ e]
-    (if rf
-      (f (rf e))
-      v))
+  ;; TODO @correctness @performance test and profile these
+  (extend-protocol P-Functor
+    clojure.lang.PersistentArrayMap
+    (fmap* [coll f]
+      (reduce (fn [acc [k v]]
+                (assoc acc k (f v)))
+              (empty coll)
+              coll))
 
-  P-Functor
-  (fmap [rf f]
-    (reader-f. nil rf f)))
+    clojure.lang.PersistentHashMap
+    (fmap* [coll f]
+      (reduce (fn [acc [k v]]
+                (assoc acc k (f v)))
+              (empty coll)
+              coll)))
 
-(defn reader [v]
-  (reader-f. v nil nil))
+;;;; UNBOXABLE
+  ;; Not really used atm
+  (defprotocol P-Unboxable
+    (unbox [this] "Unbox a datatype, e.g. to get the graph out of a Signal."))
 
-(defn read-e [rf f]
-  (fn [e]
-    (f e (rf e))))
+  (templated-protocol-impl 'P-Unboxable id-types '(unbox [this] this))
 
-(defprotocol P-Args-List
-  (args-list [x]))
+  ;; TODO @performance would it be faster to use Specter for this and similar?
 
-(defprotocol P-Symbolic-Apply
-  (sym-apply [f-expr args-expr]))
+  ;; ID types
+  (let [types (->> '[PersistentList PersistentVector PersistentArrayMap PersistentHashMap]
+                   (map #(u/symbol-prepend "clojure.lang." %)))]
+    (templated-protocol-impl 'P-Unboxable
+                             types
+                             '(unbox [this] (fmap unbox this)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;; Signal-related
-(defprotocol P-Bifunctor
-  (premap [this f])
-  (postmap [this f])
-  (bimap [this f1 f2]))
+(do
+  (defprotocol P-Bifunctor
+    (premap [this f])
+    (postmap [this f])
+    (bimap [this f1 f2]))
 
-(defprotocol P-Sig-Func
-  (sig-func [s]))
-
-(defprotocol P-Samplable
-  ;; TODO should this be time-varying too?
-  (sample-at [this t] "Evaluate a signal at a specific moment in time.")
-  (signal-type [this] [this t] "The type of the signal. If only one argument is provided,
+  (defprotocol P-Samplable
+    ;; TODO should this be time-varying too?
+    (sample-at [this t] "Evaluate a signal at a specific moment in time.")
+    #_(signal-type [this] [this t] "The type of the signal. If only one argument is provided,
                                 the type is assumed to be unchanging over time. If a time
                                 argument is provided, the signal is sampled at that time
                                 and the type of its value is returned."))
+  ;; ID types
+  (templated-protocol-impl 'P-Samplable id-types
+                           '(sample-at [this _] this))
 
-;;;; Mapping records of signals
+  (let [types (->> '[ArraySeq PersistentList PersistentVector PersistentArrayMap PersistentHashMap]
+                   (map #(u/symbol-prepend "clojure.lang." %)))]
+    (templated-protocol-impl 'P-Samplable types '(sample-at [this t] (fmap #(sample-at % t) this))))
 
-;; Main API function
-;; NOTE only needed like this because of record types, a better solution is coming
-;; (defn sample-at [obj t]
-;;   (cond
-;;     (record? obj) (do
-;;                     (println (str "Record obj: " obj))
-;;                     (util/map-record #(sample-at % t) obj) )
+  (extend-protocol P-Samplable
+    clojure.lang.Var
+    (sample-at [this t]
+      (-> this var-get (sample-at t)))
+    ;; Does it even make sense to sample a function (i.e. getting back another function)?
+    ;; clojure.lang.Fn
+    ;; (sample-at [this t]
+    ;;   (assert (= 1 (u/fn-arg-count this)))
+    ;;   (this t))
+    ))
 
-;;     :else (sample-at obj t)))
+;; SymbolicExpr
+(do
 
-(extend-protocol P-Samplable
-  clojure.lang.Var
-  (sample-at [this t]
-    (-> this var-get (sample-at t)))
+  (defprotocol P-SymbolicExpr
+    (->expr [this]))
 
-  clojure.lang.ArraySeq
-  (sample-at [this t]
-    (into (empty this)
-          (map #(sample-at % t)
-               this)))
+  (templated-protocol-impl 'P-SymbolicExpr id-types '(->expr [this] this))
 
-  clojure.lang.PersistentArrayMap
-  (sample-at [this t]
-    (into {} (for [[k v] this]
-               [k (sample-at v t)])))
-
-  Number
-  (sample-at [this _] this)
-  (signal-type
-    ([this]   (class this))
-    ([this _] (class this)))
-
-  Long
-  (sample-at [this _] this)
-  (signal-type
-    ([_] Long)
-    ([_ _] Long))
-
-  Integer
-  (sample-at [this _] this)
-  (signal-type
-    ([_]   Integer)
-    ([_ _] Integer))
-
-  clojure.lang.Ratio
-  (sample-at [this _] this)
-  (signal-type
-    ([_]   clojure.lang.Ratio)
-    ([_ _] clojure.lang.Ratio))
-
-  Double
-  (sample-at [this _] this)
-  (signal-type
-    ([_]   Double)
-    ([_ _] Double))
-
-  Float
-  (sample-at [this _] this)
-  (signal-type
-    ([_]   Float)
-    ([_ _] Float))
-
-  String
-  (sample-at [this _] this)
-  (signal-type
-    ([_]   String)
-    ([_ _] String))
-
-  clojure.lang.Keyword
-  (sample-at [this _] this)
-  (signal-type
-    ([_]   clojure.lang.Keyword)
-    ([_ _] clojure.lang.Keyword))
-
-  clojure.lang.Symbol
-  (sample-at [this _] this)
-  (signal-type
-    ([_] clojure.lang.Symbol)
-    ([_ _] clojure.lang.Symbol))
-
-  clojure.lang.PersistentList
-  ;; (sample-at [this t]
-  ;;   ;; (eval)
-  ;;   ;; look at note re: into vs apply
-  ;;   (println "list sample-ath")
-  ;;   (into '()
-  ;;         (map #(sample-at % t) this)))
-  (sample-at [this t]
-    "hello")
-  ;; TODO @robustness is this correct? probably not
-  (signal-type
-    ([this]
-     (class (sample-at this 0)))
-    ([this t]
-     (class (sample-at this t))))
-
-  clojure.lang.PersistentVector
-  (sample-at [this t]
-    (into []
-          (map #(sample-at % t) this)))
-  ;; TODO @robustness is this correct?
-  (signal-type
-    ([this]
-     (class (sample-at this 0)))
-    ([this t]
-     (class (sample-at this t))))
-
-  ;; clojure.lang.Fn
-  ;; (sample-at [this t]
-  ;;   (assert (= 1 (util/fn-arg-count this)))
-  ;;   (this t))
-  )
-
-(extend-protocol P-Unboxable
-  Number
-  (unbox [this] this)
-
-  Long
-  (unbox [this] this)
-
-  Integer
-  (unbox [this] this)
-
-  clojure.lang.Ratio
-  (unbox [this] this)
-
-  Double
-  (unbox [this] this)
-
-  Float
-  (unbox [this] this)
-
-  String
-  (unbox [this] this)
-
-  clojure.lang.Keyword
-  (unbox [this] this)
-
-  clojure.lang.Symbol
-  (unbox [this] this)
-
-  clojure.lang.PersistentList
-  (unbox [this]
-    (apply list (map unbox this)))
-
-  clojure.lang.PersistentVector
-  (unbox [this]
-    (apply vector (map unbox this))))
-
-(defprotocol P-SymbolicExpression
-  (->expr [this]))
-
-(extend-protocol P-SymbolicExpression
-  Number
-  (->expr [this] this)
-
-  Long
-  (->expr [this] this)
-
-  Integer
-  (->expr [this] this)
-
-  clojure.lang.Ratio
-  (->expr [this] this)
-
-  Double
-  (->expr [this] this)
-
-  Float
-  (->expr [this] this)
-
-  String
-  (->expr [this] this)
-
-  clojure.lang.Keyword
-  (->expr [this] this)
-
-  clojure.lang.Symbol
-  (->expr [this] this)
-
-  clojure.lang.PersistentList
-  (->expr [this]
-    (apply list (map ->expr this)))
-
-  clojure.lang.PersistentVector
-  (->expr [this]
-    (apply vector (map ->expr this))))
+  (let [types (->> '[PersistentList PersistentVector]
+                   (map #(u/symbol-prepend "clojure.lang." %)))]
+    (templated-protocol-impl 'P-SymbolicExpr types '(->expr [this] (fmap ->expr this)))))
 
 ;; Drawing
 (defprotocol P-Drawable
   "Draw a static object"
   (draw [this] "Draw a (non-signal) graphics object."))
 
-(extend-protocol P-Drawable
-  clojure.lang.PersistentVector
-  (draw [this] (doseq [x this]
-                 (draw x)))
+(let [types (->> '[PersistentList PersistentVector]
+                 (map #(u/symbol-prepend "clojure.lang." %)))]
+  (templated-protocol-impl 'P-Drawable types '(draw [this] (doseq [x this] (when x (draw x))))))
 
-  clojure.lang.PersistentArrayMap
-  (draw [this] (doseq [x (vals this)]
-                 (draw x))))
+(let [types (->> '[PersistentArrayMap PersistentHashMap]
+                 (map #(u/symbol-prepend "clojure.lang." %)))]
+  (templated-protocol-impl 'P-Drawable types
+                           '(draw [this] (doseq [x (vals this)]
+                                           (when x
+                                             (draw x))))))
 
 (defprotocol P-Samplable+Drawable
   (draw-at [this t] "Draw a signal graphics object."))
@@ -289,3 +146,26 @@
     (range-at [this t]
       (let [sampled (mapv #(sample-at % t) this)]
         [(min sampled) (max sampled)]))))
+
+(defprotocol P-Skijable
+  (->skija [this]))
+
+;; Unused
+(do
+  (deftype reader-f [v rf f]
+    clojure.lang.IFn
+    (invoke [_ e]
+      (if rf
+        (f (rf e))
+        v))
+
+    P-Functor
+    (fmap* [rf f]
+      (reader-f. nil rf f)))
+
+  (defn reader [v]
+    (reader-f. v nil nil))
+
+  (defn read-e [rf f]
+    (fn [e]
+      (f e (rf e)))))
