@@ -1,12 +1,11 @@
 (ns timelines.signal
   (:require [timelines.utils :as util]
-            [timelines.protocols :refer [P-Samplable P-Bifunctor P-SymbolicExpression
+            [timelines.protocols :refer [P-Samplable P-Bifunctor P-SymbolicExpr
                                          sample-at postmap premap ->expr]]
             [timelines.expr :as expr]
             ;; [timelines.signal.api :refer :all]
             ;; [timelines.expr.core :as expr :refer :all]
             [clojure.pprint :refer [pprint]]
-            [timelines.types :refer :all]
             ;; [timelines.signal :as signal]
             ))
 
@@ -72,7 +71,7 @@
           (premap pre-fn)
           (postmap post-fn))))
 
-  P-SymbolicExpression
+  P-SymbolicExpr
   (->expr [this] expr))
 
 ;; TODO abstract const expr checking into its own function

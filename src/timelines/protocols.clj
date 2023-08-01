@@ -3,19 +3,20 @@
             [timelines.utils :as u]
             [clojure.walk :refer [postwalk prewalk]]
             [clojure.spec.alpha :as s]
-            [timelines.macros :as m]
-            [timelines.globals :as globals]))
+            [timelines.macros :as m]))
 
 (def id-types '[Number Long Integer Double Float clojure.lang.Ratio
                 String clojure.lang.Keyword clojure.lang.Symbol])
 
-(defn templated-protocol-impl [protocol types body]
+(defn templated-protocol-impl [protocol types & bodies]
   (doseq [t types]
-    (eval (list 'extend-protocol protocol t body))))
+    (let [expr (concat (list 'extend-protocol protocol t)
+                       bodies)]
+      (println expr)
+      #_(eval expr))))
 
 ;; General
 (do
-
 ;;;; FUNCTOR
   ;; taken from https://github.com/jduey/Functors/blob/master/src/functors.clj
   (defprotocol P-Functor
@@ -27,7 +28,7 @@
 
   (let [types (->> '[PersistentList PersistentVector ArraySeq]
                    (map #(u/symbol-prepend "clojure.lang." %)))]
-    (templated-protocol-impl 'P-Unboxable
+    (templated-protocol-impl 'P-Functor
                              types
                              '(fmap* [this f]
                                      (into (empty this) (r/map f this)))))
@@ -113,18 +114,20 @@
 ;; Drawing
 (defprotocol P-Drawable
   "Draw a static object"
-  (draw [this] "Draw a (non-signal) graphics object."))
+  (draw [this] [this canvas]))
 
 (let [types (->> '[PersistentList PersistentVector]
                  (map #(u/symbol-prepend "clojure.lang." %)))]
-  (templated-protocol-impl 'P-Drawable types '(draw [this] (doseq [x this] (when x (draw x))))))
+  (templated-protocol-impl 'P-Drawable types '((draw [this] (draw this @timelines.globals/*main-canvas))
+                                               (draw [this canvas] (doseq [x this]
+                                                                     (when x (draw x canvas)))))))
 
 (let [types (->> '[PersistentArrayMap PersistentHashMap]
                  (map #(u/symbol-prepend "clojure.lang." %)))]
   (templated-protocol-impl 'P-Drawable types
-                           '(draw [this] (doseq [x (vals this)]
-                                           (when x
-                                             (draw x))))))
+                           '((draw [this] (draw this @timelines.globals/*main-canvas))
+                             (draw [this canvas] (doseq [x (vals this)]
+                                                   (when x (draw x canvas)))))))
 
 (defprotocol P-Samplable+Drawable
   (draw-at [this t] "Draw a signal graphics object."))

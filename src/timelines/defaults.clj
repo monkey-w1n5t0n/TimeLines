@@ -1,19 +1,9 @@
-#_(ns timelines.draw.defaults
-  (:require [timelines.draw.macros :refer [defrecord-graphic]])
+(ns timelines.defaults
+  (:require [timelines.colors :refer :all])
   (:import
-   [org.jetbrains.skija
-    ;; BackendRenderTarget
-    ;; Canvas
-    ;; ColorSpace
-    ;; DirectContext
-    ;; FramebufferFormat
-    Paint PaintMode
-    Rect
-    ;; Surface
-    ;; SurfaceColorFormat
-    ;; SurfaceOrigin
-    ]
-   )
-  )
+   [org.jetbrains.skija Paint PaintMode]))
 
-
+(def default-color palette-white)
+(def default-stroke-width 1)
+(def default-paint-style (PaintMode/FILL))
+(def default-paint-color default-color)

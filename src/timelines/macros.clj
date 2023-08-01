@@ -139,7 +139,4 @@
           protocol-impls (if-not (u/in? protocol-impls 'P-Samplable)
                            (concat ['P-Samplable default-samplable-impl] protocol-impls)
                            protocol-impls)]
-      `(do
-         (defrecord ~name ~params)
-         (extend-type ~name
-           ~@protocol-impls)))))
+      `(defrecord ~name ~params ~@protocol-impls))))

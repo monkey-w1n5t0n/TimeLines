@@ -3,7 +3,7 @@
 (def screen-height 600)
 (def screen-width 800)
 
-(def *global-canvas (atom nil))
+(def *main-canvas (atom nil))
 
 (def *behaviors (atom {}))
 

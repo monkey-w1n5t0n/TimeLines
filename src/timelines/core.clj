@@ -2,7 +2,7 @@
   (:require
    [nrepl.server :as nrepl]
    [clojure.core.typed :as t]
-   [timelines.globals :refer [*global-canvas screen-width screen-height]]
+   [timelines.globals :refer [*main-canvas screen-width screen-height]]
    [timelines.editor :as editor]
    [timelines.utils :refer [color]])
 
@@ -60,7 +60,7 @@
       ;; (.translate canvas 0 (- screen-height))
       ;; Continue...
       (.scale canvas scale-x scale-y)
-      (reset! *global-canvas canvas)
+      (reset! *canvas canvas)
       #_(let [draw-thread
               (future)])
       (loop []

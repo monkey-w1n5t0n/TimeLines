@@ -1,6 +1,5 @@
 (ns timelines.expr
   (:require [timelines.protocols :refer :all]
-            [timelines.types :refer :all]
             [timelines.utils :as util]))
 
 (declare symbolic-apply-direct
