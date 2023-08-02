@@ -41,6 +41,23 @@
               paint (->skija paint)]
           (.drawOval canvas oval paint))))
 
+(defgraphics Rect [x y w h r]
+  P-Skijable
+  (->skija [this]
+           (if (and r (> r 0))
+             (org.jetbrains.skija.RRect/makeXYWH x y w h r)
+             (org.jetbrains.skija.Rect/makeXYWH x y w h)))
+
+  P-Drawable
+  (draw [this] (draw this @timelines.globals/*main-canvas))
+  (draw [{:keys [r paint] :as this} canvas]
+        (let [rect (->skija this)
+              paint (->skija  (or paint default-paint))
+              draw-method (if (and r (> r 0))
+                            org.jetbrains.skija.Canvas/.drawRRect
+                            org.jetbrains.skija.Canvas/.drawRect)]
+          (draw-method canvas rect paint))))
+
 (defn font->skija [{:keys [name size path] :as f}]
   (let [typeface (with-open [is (io/input-stream (io/resource path))]
                    (let [bytes (.readAllBytes is)]
@@ -113,7 +130,7 @@
 
   (defn rect
     ([x y w h]
-     (map->Rect {:x x :y y :w w :h h}))
+     (->Rect x y w h))
     ([x y w h r]
      (map->Rect {:x x :y y :w w :h h :r r}))
     ;; ([x y w h r1 r2]
