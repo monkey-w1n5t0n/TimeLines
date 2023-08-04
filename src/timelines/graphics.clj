@@ -11,171 +11,158 @@
    [timelines.time :refer [now]]
    [timelines.globals :refer [*main-canvas]]
    [timelines.protocols :refer [P-Samplable P-Drawable P-Skijable ->skija draw sample-at draw-at]] ; P-Samplable+Drawable
-   ;; [timelines.draw.defaults :refer :all]
    [timelines.macros :as macro]
    [timelines.specs :as specs]
    [clojure.spec.alpha :as s]
-   #_[timelines.draw.macros :refer [defrecord-graphic]]
    [timelines.globals :as globals])
   (:import
-   [org.jetbrains.skija Path PaintMode Data Typeface Font]))
+   [org.jetbrains.skija Path Canvas RRect PaintMode Data Typeface]))
 
-(defgraphics Paint [color alpha style stroke-width stroke-cap]
-  P-Skijable
-  (->skija [{:keys [color style stroke-width alpha] :as paint}]
-           (doto (org.jetbrains.skija.Paint.)
-             (.setColor (u/color (or color default-color)))
-             (.setStrokeWidth (or stroke-width default-stroke-width))
-             (.setMode (or style default-paint-style))
-             (.setAlphaf (or alpha 1.0)))))
+(def font-name->resource-path
+  {"FiraCode Regular" "fonts/FiraCode-Regular.ttf"})
 
-(defgraphics Oval [x y w h]
-  P-Skijable
-  (->skija
-   [this] (org.jetbrains.skija.Rect/makeXYWH x y w h))
+;; Container
+(do
+  (defgraphics Container [x y contents]
+    P-Drawable
+    (draw [this] (draw this @timelines.globals/*main-canvas))
+    (draw [this canvas] (doseq [x contents] (draw x canvas)))))
 
-  P-Drawable
-  (draw [this] (draw this @timelines.globals/*main-canvas))
-  (draw [{:keys [paint] :as oval} canvas]
-        (let [oval (->skija oval)
-              paint (->skija paint)]
-          (.drawOval canvas oval paint))))
+;; Shapes
+(do
+  ;; Rect
 
-(defgraphics Rect [x y w h r]
-  P-Skijable
-  (->skija [this]
-           (if (and r (> r 0))
-             (org.jetbrains.skija.RRect/makeXYWH x y w h r)
-             (org.jetbrains.skija.Rect/makeXYWH x y w h)))
+  (defgraphics Rect [x y w h r]
+    P-Skijable
+    (->skija [this]
+             (if (and r (> r 0))
+               (org.jetbrains.skija.RRect/makeXYWH x y w h r)
+               (org.jetbrains.skija.Rect/makeXYWH x y w h)))
 
-  P-Drawable
-  (draw [this] (draw this @timelines.globals/*main-canvas))
-  (draw [{:keys [r paint] :as this} canvas]
-        (let [rect (->skija this)
-              paint (->skija  (or paint default-paint))
-              draw-method (if (and r (> r 0))
-                            org.jetbrains.skija.Canvas/.drawRRect
-                            org.jetbrains.skija.Canvas/.drawRect)]
-          (draw-method canvas rect paint))))
+    P-Drawable
+    (draw [this] (draw this @timelines.globals/*main-canvas))
+    (draw [{:keys [r paint] :as this} canvas]
+          (let [rect (->skija this)
+                paint (->skija  (or paint default-paint))]
+            (if (and r (> r 0))
+              (.drawRRect canvas rect paint)
+              (.drawRect canvas rect paint)))))
+  (defn rect
+    ([x y w h]
+     (map->Rect {:x x :y y :w w :h h}))
+    ([x y w h r]
+     (map->Rect {:x x :y y :w w :h h :r r})))
 
-(defn font->skija [{:keys [name size path] :as f}]
-  (let [typeface (with-open [is (io/input-stream (io/resource path))]
-                   (let [bytes (.readAllBytes is)]
-                     (with-open [data (Data/makeFromBytes bytes)]
-                       (Typeface/makeFromData data 0))))]
-    (Font. typeface size)))
+  (defn radius [obj r]
+    (assoc obj :r r))
+
+  (comment
+    (def test-rect (rect 50 50 80 60)))
+
+  ;; Oval
+  (defgraphics Oval [x y w h]
+    P-Skijable
+    (->skija
+     [this] (org.jetbrains.skija.Rect/makeXYWH x y w h))
+
+    P-Drawable
+    (draw [this] (draw this @timelines.globals/*main-canvas))
+    (draw [{:keys [paint] :as oval} canvas]
+          (let [oval (->skija oval)
+                paint (->skija paint)]
+            (.drawOval canvas oval paint)))))
 
 ;; Paints
 (do
-  ;; TODO
+  (s/def :paint/style #{:fill :stroke})
+  (s/def :paint/stroke-width number?)
 
-  (defn paint-style
-    "Style keyword must be qualified, e.g. :paint-style/fill"
-    [paint s]
-    (assoc paint :style
-           (case s
-             :fill (PaintMode/FILL)
-             :stroke (PaintMode/STROKE)
-             :else default-paint-style)))
+  (defgraphics Paint [color alpha style stroke-width stroke-cap]
+    P-Skijable
+    (->skija [{:keys [color style stroke-width alpha] :as paint}]
+             (doto (org.jetbrains.skija.Paint.)
+               (.setColor (u/color (or color default-color)))
+               (.setStrokeWidth (or stroke-width default-stroke-width))
+               (.setMode (paint-style->skija (or style default-paint-style)))
+               (.setAlphaf (or alpha 1.0)))))
 
-  (defn paint-color [paint col]
-    (assoc paint :color col))
+  (s/def ::paint #(instance? Paint %))
 
-  (defn paint-alpha [paint a]
-    (assoc paint :alpha a))
+  ;; TODO @design this shouldn't really exist, shold it?
+  (extend-protocol P-Skijable
+    org.jetbrains.skija.Paint
+    (->skija [this] this))
 
-  (defn paint-stroke-width
-    [paint sw]
-    (assoc paint :stroke-width sw))
-
-  (defn paint-stroke-cap
-    "Stroke cap keyword must be qualified, e.g. :paint-stroke-cap/round"
-    [paint sc]
-    (assoc paint :stroke-cap sc))
-
-  (defn make-paint
-    ([] (map->Paint {}))
+  (defn paint
     ([color]
-     (map->Paint {:color color}))
+     (paint color nil nil))
     ([color style]
-     (->
-      (map->Paint {:color color})
-      (paint-style style)))
-    ([color style stroke-width]
-     (-> (map->Paint {:color color})
-         (paint-style style)
-         (paint-stroke-width stroke-width)))
-    ([color style stroke-width & opts]
-     (map->Paint
-      {:color color :opts opts})))
+     (paint color style nil nil))
+    ([color style stroke-width]))
 
-  #_(def test-paint (-> (make-paint)
-                        (paint-color 0xFF333333)
-                        (paint-stroke-width 2)
-                        (paint-style :stroke)
-                        R-Paint->SKPaint))
-
-  (defn paint [obj p]
-    (assoc obj :paint p))
-
-  (defn color [obj c]
-    (update obj :paint (paint-color c))))
-
-(comment
-
-  (macro/pprint (defrecord-graphic R-Paint [color alpha style stroke-width stroke-cap])))
-
-;; Rects
-(do
-
-  (defn rect
-    ([x y w h]
-     (->Rect x y w h))
-    ([x y w h r]
-     (map->Rect {:x x :y y :w w :h h :r r}))
-    ;; ([x y w h r1 r2]
-    ;;  (map->R-Rect {:x x :y y :w w :h h :r1 r1 :r2 r2}))
-    )
-
-  (defn radius [obj r]
-    (assoc obj :r r)
-    #_([obj r1 r2]
-       (assoc obj :r1 r1 :r2 r2)))
-
-  (comment
-    (def test-rect (rect 50 50 80 60))))
+  #_(defn paint
+      ;; Default paint
+      ([] (map->Paint {}))
+      ;; Paint with color
+      ([color]
+       (map->Paint {:color color}))
+      ;; Paint and either style or obj
+      ([color-or-paint style-or-obj]
+       (if (s/valid? ::paint color-or-paint)
+         (assoc style-or-obj :paint color-or-paint)
+         (if (s/valid? :paint/style style-or-obj)
+           (map->Paint {:color color-or-paint :style style-or-obj})
+           (paint color-or-paint nil nil style-or-obj))))
+      ([color style stroke-width-or-obj]
+       (if (s/valid? :paint/stroke-width stroke-width-or-obj)
+         (map->Paint {:color color :style style :stroke-width stroke-width-or-obj})
+         (paint color style nil stroke-width-or-obj)))
+      ([color style stroke-width obj]
+       (assoc obj :paint
+              (map->Paint {:color color :style style :stroke-width stroke-width})))))
 
 ;; Text
 (do
 
-  (def default-font (load-font "fonts/FiraCode-Regular.ttf"))
+  (def memoized-load-typeface
+    (memoize (fn [path]
+               (with-open [is (io/input-stream (io/resource path))]
+                 (let [bytes (.readAllBytes is)]
+                   (with-open [data (Data/makeFromBytes bytes)]
+                     (Typeface/makeFromData data 0)))))))
 
-  (def default-text-paint (make-paint palette-white))
-
+  (def default-text-paint (paint palette-white))
   (def default-text-size 20)
 
-  (defn font-size [text s]
-    (assoc text :size s))
-
-  (defgraphic Text [text x y size paint font]
+  (defgraphics Font [name size]
     P-Skijable
-    ;; TODO
-    (->skija [this] this))
+    (->skija [this] (org.jetbrains.skija.Font. (memoized-load-typeface
+                                                (font-name->resource-path))
+                                               size)))
 
-  (defn make-text
-    ([t x y]       (Text t x y   default-text-size default-text-paint default-font))
-    ([t x y s]     (Text t x y s                   default-text-paint default-font))
-    ([t x y s p]   (Text t x y s p                                    default-font))
-    ([t x y s p f] (Text t x y s p f)))
-
-  (def text make-text)
-
-  (extend-type R-Text
+  (defgraphics Text [text x y size paint font]
+    ;; P-Skijable
+    ;; (->skija [this] (Text.))
     P-Drawable
-    (draw [{:keys [text x y paint font size]}]
-      (let [paint (R-Paint->SKPaint paint)]
-        (.drawString @*main-canvas text (float x) (float y) (.setSize font size) paint)))))
+    (draw [this] (draw this @timelines.globals/*main-canvas))
+    (draw [this canvas]
+          (.drawString canvas text
+                       (float x)
+                       (float y)
+                       (->skija (assoc font :size size))
+                       (->skija paint))))
 
+  (defn text
+    ([t x y]
+     (text t x y nil nil nil))
+    ([t x y s]
+     (text t x y s nil nil))
+    ([t x y s p]
+     (text t x y s p nil))
+    ([t x y s p f]
+     (->Text t x y s p f))))
+
+;; Misc protocols
 (do
 
   (extend-protocol P-Samplable

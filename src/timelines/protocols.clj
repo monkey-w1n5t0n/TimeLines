@@ -13,7 +13,7 @@
     (let [expr (concat (list 'extend-protocol protocol t)
                        bodies)]
       (println expr)
-      #_(eval expr))))
+      (eval expr))))
 
 ;; General
 (do
@@ -118,19 +118,20 @@
 
 (let [types (->> '[PersistentList PersistentVector]
                  (map #(u/symbol-prepend "clojure.lang." %)))]
-  (templated-protocol-impl 'P-Drawable types '((draw [this] (draw this @timelines.globals/*main-canvas))
-                                               (draw [this canvas] (doseq [x this]
-                                                                     (when x (draw x canvas)))))))
+  (templated-protocol-impl 'P-Drawable types
+                           '(draw [this] (draw this @timelines.globals/*main-canvas))
+                           '(draw [this canvas] (doseq [x this]
+                                                  (when x (draw x canvas))))))
 
 (let [types (->> '[PersistentArrayMap PersistentHashMap]
                  (map #(u/symbol-prepend "clojure.lang." %)))]
   (templated-protocol-impl 'P-Drawable types
-                           '((draw [this] (draw this @timelines.globals/*main-canvas))
-                             (draw [this canvas] (doseq [x (vals this)]
-                                                   (when x (draw x canvas)))))))
+                           '(draw [this] (draw this @timelines.globals/*main-canvas))
+                           '(draw [this canvas] (doseq [x (vals this)]
+                                                  (when x (draw x canvas))))))
 
-(defprotocol P-Samplable+Drawable
-  (draw-at [this t] "Draw a signal graphics object."))
+;; (defprotocol P-Samplable+Drawable
+;;   (draw-at [this t] "Draw a signal graphics object."))
 
 ;; Range
 (do
@@ -172,3 +173,6 @@
   (defn read-e [rf f]
     (fn [e]
       (f e (rf e)))))
+
+(defn draw-at [obj t]
+  (-> obj (sample-at t) draw))
