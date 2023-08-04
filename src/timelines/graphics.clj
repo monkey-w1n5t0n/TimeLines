@@ -1,7 +1,6 @@
 (ns timelines.graphics
   (:require
    [clojure.spec.alpha :as s]
-   [clojure.java.io :as io]
    [clojure.string :as str]
    [clojure.walk :as walk]
    [timelines.utils :as u]
@@ -14,12 +13,10 @@
    [timelines.macros :as macro]
    [timelines.specs :as specs]
    [clojure.spec.alpha :as s]
-   [timelines.globals :as globals])
+   [timelines.globals :as globals]
+   [timelines.skija :as sk])
   (:import
-   [org.jetbrains.skija Path Canvas RRect PaintMode Data Typeface]))
-
-(def font-name->resource-path
-  {"FiraCode Regular" "fonts/FiraCode-Regular.ttf"})
+   [org.jetbrains.skija Path Canvas PaintMode]))
 
 ;; Container
 (do
@@ -77,6 +74,12 @@
   (s/def :paint/style #{:fill :stroke})
   (s/def :paint/stroke-width number?)
 
+  (defn paint-style->skija [style]
+    (case style
+      :fill (PaintMode/FILL)
+      :stroke (PaintMode/STROKE)
+      :else (throw (Exception. (str "Incorrect paint style: " style)))))
+
   (defgraphics Paint [color alpha style stroke-width stroke-cap]
     P-Skijable
     (->skija [{:keys [color style stroke-width alpha] :as paint}]
@@ -88,7 +91,7 @@
 
   (s/def ::paint #(instance? Paint %))
 
-  ;; TODO @design this shouldn't really exist, shold it?
+  ;; TODO @design this shouldn't really exist, should it?
   (extend-protocol P-Skijable
     org.jetbrains.skija.Paint
     (->skija [this] this))
@@ -97,8 +100,12 @@
     ([color]
      (paint color nil nil))
     ([color style]
-     (paint color style nil nil))
-    ([color style stroke-width]))
+     (paint color style nil))
+    ([color style stroke-width]
+     (map->Paint {:color color :style style :stroke-width stroke-width})))
+
+  (defn apply-paint [paint obj]
+    (assoc obj :paint paint))
 
   #_(defn paint
       ;; Default paint
@@ -124,20 +131,15 @@
 ;; Text
 (do
 
-  (def memoized-load-typeface
-    (memoize (fn [path]
-               (with-open [is (io/input-stream (io/resource path))]
-                 (let [bytes (.readAllBytes is)]
-                   (with-open [data (Data/makeFromBytes bytes)]
-                     (Typeface/makeFromData data 0)))))))
-
   (def default-text-paint (paint palette-white))
   (def default-text-size 20)
 
+  (def font-name->resource-path
+    {"FiraCode Regular" "fonts/FiraCode-Regular.ttf"})
+
   (defgraphics Font [name size]
     P-Skijable
-    (->skija [this] (org.jetbrains.skija.Font. (memoized-load-typeface
-                                                (font-name->resource-path))
+    (->skija [this] (org.jetbrains.skija.Font. (sk/memoized-load-typeface (font-name->resource-path name))
                                                size)))
 
   (defgraphics Text [text x y size paint font]

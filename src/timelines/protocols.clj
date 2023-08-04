@@ -114,14 +114,21 @@
 ;; Drawing
 (defprotocol P-Drawable
   "Draw a static object"
-  (draw [this] [this canvas]))
+  #dbg(draw [this] [this canvas]))
 
-(let [types (->> '[PersistentList PersistentVector]
-                 (map #(u/symbol-prepend "clojure.lang." %)))]
-  (templated-protocol-impl 'P-Drawable types
-                           '(draw [this] (draw this @timelines.globals/*main-canvas))
-                           '(draw [this canvas] (doseq [x this]
-                                                  (when x (draw x canvas))))))
+#_(let [types (->> '[PersistentList PersistentVector]
+                   (map #(u/symbol-prepend "clojure.lang." %)))]
+    (templated-protocol-impl 'P-Drawable types
+                             '(draw [this] (draw this @timelines.globals/*main-canvas))
+                             '(draw [this canvas] (doseq [x this]
+                                                    (when x (draw x canvas))))))
+
+(extend-protocol P-Drawable
+  clojure.lang.PersistentVector
+  (draw [this] (draw this @timelines.globals/*main-canvas))
+  (draw [this canvas]
+    (doseq [x this] (when x
+                      (draw x canvas)))))
 
 (let [types (->> '[PersistentArrayMap PersistentHashMap]
                  (map #(u/symbol-prepend "clojure.lang." %)))]

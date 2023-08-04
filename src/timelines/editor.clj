@@ -136,27 +136,33 @@
     (def scene [window
                 modeline]))
 
-(def broken-scene
-  [(->> (rect 0 0 screen-width screen-height)
-        (paint red))
-   #_(let [color (from-list [black blue
-                             (from-list [black white black white] (fast 2 beat))
-                             black white]
-                            (fast 2 bar))
-           text-paint (paint color)
-           text-x (* bar (* 1.2 screen-width))
-           text-y (/ screen-height 2)
-           text-size (* 50 (-> t
-                               (* twoPi)
-                               sine01
-                               (+ 0.5)))]
-       (text "BROKEN" text-x text-y text-size text-paint))])
+#_(def broken-scene
+    [(->> (rect 0 0 screen-width screen-height)
+          (apply-paint (paint red)))
+     #_(let [color (from-list [black blue
+                               (from-list [black white black white] (fast 2 beat))
+                               black white]
+                              (fast 2 bar))
+             text-paint (paint color)
+             text-x (* bar (* 1.2 screen-width))
+             text-y (/ screen-height 2)
+             text-size (* 50 (-> t
+                                 (* twoPi)
+                                 sine01
+                                 (+ 0.5)))]
+         (text "BROKEN" text-x text-y text-size text-paint))])
 
 (defonce *broken? (atom false))
 (defonce *stacktrace-printed? (atom false))
 
+(timelines.protocols/draw (rect 1 2 3 4))
+
 (defn draw []
-  (draw-at broken-scene (now))
+  (let [x (apply-paint (paint (from-list [red red blue] bar))
+                       (rect 40 20 250 340))
+        y (rect 120 120 250 250)]
+    (draw-at [x y] (now)))
+  #_(draw-at broken-scene (now))
   #_(try
       (do
         (draw-at scene (now))
