@@ -1,7 +1,6 @@
 (ns timelines.specs
   (:require [clojure.spec.alpha :as s]
             [clojure.spec.gen.alpha :as gen]
-            [timelines.signal :as sig]
             [timelines.utils :as u]))
 
 ;; basic Clojure stuff
@@ -70,13 +69,14 @@ or anything that can be evaluated to one."}
 
 ;; Signal stuff
 (do
-  (s/def ::sig-func
+  (s/def :expr.sig/fn
     ^{:doc "An unevaluated lambda expression with just one argument."}
-    (s/and :clojure/lambda-expr
+    (s/and :clojure.expr/fn
            ;; #(= 1 (-> % second count))
-           #(= 1 (-> % :args count))))
+           #(= 1 (-> % :args count))
+           #(= 1 (-> % :body count))))
 
-  (comment))
+  (s/valid? :expr.sig/fn '(fn [2] 2)))
 
 ;; FIXME
 ;; (s/def ::signal (s/or :sig (instance? timelines.signal.core/Signal)
