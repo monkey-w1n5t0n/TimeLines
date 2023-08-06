@@ -75,7 +75,7 @@
   (def browser (-> (rect browser-x browser-y browser-w browser-h)
                    (paint (make-paint palette-blue-medium))))
 
-  (def amp-expr '(+ 0.5 (* 0.2 (sine01 (* twoPi (slow 2 bar))))))
+  (def amp-expr '(+ 0.3 (* 0.2 (sine01 (* twoPi (slow 8 bar))))))
   (def melody-expr '(from-list [0 0 3 0 2 2 5 12] bar))
 
   (def amp-sig (eval amp-expr))
@@ -130,15 +130,45 @@
                             #_(from-list [" " "" " "] bar)
                             ".") (* 100 bar) 100 50)])
 
-;; (def line-number 128)
+  ;; (def line-number 128)
   ;; (def file "~/test/path/to/file")
 
   ;; (def modeline [line-number file])
   (def modeline (-> (rect modeline-x modeline-y screen-width modeline-height)
                     (paint (make-paint palette-blue-light))))
 
-  (def scene [window
-              modeline]))
+  (def examp-main-scene [window
+              ;; modeline
+                         (line [50 50] [200 200])
+                         (polygon [[10 100] [200 200]
+                                   [150 (from-list [140 230 259 2348 130] bar)]
+                                   [10 100]]
+                                  (make-paint red))
+                         (polygon [[10 100] [200 200]
+                                   [150 (from-list [140 230 259 2348 130] bar)]
+                                   [10 100]]
+                                  (make-paint red))
+                         (polygon [[10 100] [200 200]
+                                   [150 (from-list [140 230 259 2348 130] bar)]
+                                   [10 100]]
+                                  (make-paint black))
+                         (polygon [[80 400] [200 200]
+                                   [150 (from-list [140 230 259 2348 130] bar)]
+                                   [10 100]]
+                                  (make-paint blue))
+                         (polygon [[10 100] [123 524]
+                                   [150 (from-list [140 230 259 2348 130] bar)]
+                                   [10 100]]
+                                  (make-paint red))]))
+
+(def scene (into [] (for [i (range 100)]
+                      (let [x (rand-int screen-width)
+                            y (rand-int screen-height)
+                            w (+ 10 (rand-int 20))
+                            h (+ 10 (rand-int 20))
+                            slow-factor (+ 1 (rand-int 5))
+                            color (from-list [red red blue white] (slow slow-factor bar))]
+                        (rect x y w h (make-paint color))))))
 
 (def broken-scene
   [(-> (rect 0 0 screen-width screen-height)
@@ -158,6 +188,11 @@
 
 (defonce *broken? (atom false))
 (defonce *stacktrace-printed? (atom false))
+
+(defn draw-fps [n]
+  (draw-at
+   (text (str "FPS: " (int n)) 3 (- screen-height 3) 20 (make-paint black))
+   (now)))
 
 (defn draw-screen []
   (try

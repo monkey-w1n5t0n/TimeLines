@@ -40,9 +40,6 @@
     (GLFW/glfwGetWindowContentScale window x y)
     [(first x) (first y)]))
 
-#_(defn draw-screen []
-    (draw (rect 100 200 300 400)))
-
 (defn -main [& args]
   (init-GLFW!)
   (let [window (create-main-window! screen-width screen-height "Skija LWJGL Demo FLOATING")]
@@ -68,16 +65,34 @@
       (reset! *global-canvas canvas)
       #_(let [draw-thread
               (future)])
-      (loop []
-        (when (not (GLFW/glfwWindowShouldClose window))
-          (.clear canvas (color 0xFFFFFFFF))
-          (let [layer (.save canvas)]
-            (#'api/draw-screen)
-            (.restoreToCount canvas layer))
-          (.flush context)
-          (GLFW/glfwSwapBuffers window)
-          (GLFW/glfwPollEvents)
-          (recur)))
+      (let [time-deltas (atom [])
+            avg-fps (atom 0)]
+        (loop []
+          (when (not (GLFW/glfwWindowShouldClose window))
+            (let [start-time (System/nanoTime)]
+              ;; RENDER
+              (.clear canvas (color 0xFFFFFFFF))
+              (let [layer (.save canvas)]
+                (#'api/draw-screen)
+                (#'api/draw-fps @avg-fps)
+                (.restoreToCount canvas layer))
+              (.flush context)
+              (GLFW/glfwSwapBuffers window)
+              (GLFW/glfwPollEvents)
+              ;; FPS
+              (swap! time-deltas conj (- (System/nanoTime) start-time))
+
+              ;; Keep only the last 100 time measurements to calculate FPS
+              (when (> (count @time-deltas) 100)
+                (swap! time-deltas subvec 1))
+
+              ;; Calculate and print FPS every 100 frames
+              (when (zero? (mod (count @time-deltas) 100))
+                (let [avg-time (/ (reduce + @time-deltas) (count @time-deltas))
+                      fps (/ 1e9 avg-time)]
+                  (reset! avg-fps fps)))
+
+              (recur)))))
 
       (Callbacks/glfwFreeCallbacks window)
       (GLFW/glfwHideWindow window)

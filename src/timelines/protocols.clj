@@ -57,8 +57,7 @@
 (defprotocol P-Sig-Func
   (sig-func [s]))
 
-(defprotocol P-Samplable
-  ;; TODO should this be time-varying too?
+(defprotocol P-Samplable  ;; TODO should this be time-varying too?
   (sample-at [this t] "Evaluate a signal at a specific moment in time.")
   (signal-type [this] [this t] "The type of the signal. If only one argument is provided,
                                 the type is assumed to be unchanging over time. If a time
@@ -216,10 +215,10 @@
   (unbox [this]
     (apply vector (map unbox this))))
 
-(defprotocol P-SymbolicExpression
+(defprotocol P-SymbolicExpr
   (->expr [this]))
 
-(extend-protocol P-SymbolicExpression
+(extend-protocol P-SymbolicExpr
   Number
   (->expr [this] this)
 

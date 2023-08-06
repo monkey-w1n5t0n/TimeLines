@@ -63,6 +63,10 @@
 
   (def %1 mod1)
 
+  ;; TODO @correctness this shouldn't produce a random number every time it's sampled...
+  ;; (defn rand-int [& args]
+  ;;   (apply-postmap {:sym 'rand-int :source-ns 'clojure.core} args))
+
   ;; TODO @properness there's got to be a better way...
   ;; can't find out how to properly resolve Math/sin
   (defn sine-impl [x]

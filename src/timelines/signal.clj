@@ -1,6 +1,6 @@
 (ns timelines.signal
   (:require [timelines.utils :as util]
-            [timelines.protocols :refer [P-Samplable P-Bifunctor P-SymbolicExpression
+            [timelines.protocols :refer [P-Samplable P-Bifunctor P-SymbolicExpr
                                          sample-at postmap premap ->expr]]
             [timelines.expr :as expr]
             ;; [timelines.signal.api :refer :all]
@@ -72,7 +72,7 @@
           (premap pre-fn)
           (postmap post-fn))))
 
-  P-SymbolicExpression
+  P-SymbolicExpr
   (->expr [this] expr))
 
 ;; TODO abstract const expr checking into its own function
@@ -158,20 +158,20 @@
 
 ;; TODO accept <op> to be a map with further info
 ;; e.g. arity, min-max etc
-(defn apply-postmap [{:keys [sym source-ns] :as op} args]
-  (let [qualified-sym (ns-resolve (or source-ns *ns*) sym)]
-    (if (util/all? const-sig? args)
+#dbg(defn apply-postmap [{:keys [sym source-ns] :as op} args]
+      (let [qualified-sym (ns-resolve (or source-ns *ns*) sym)]
+        (if (util/all? const-sig? args)
       ;; TODO write this better
       ;; need to "unbox" all signals and leave everything else as-is
-      (let [exprs (map ->expr args)]
-        (make-signal `(~qualified-sym ~@exprs)))
-      (let [new-time-sym (gensym "time_")
-            new-args (map #(process-postmap-arg % new-time-sym) args)
+          (let [exprs (map ->expr args)]
+            (make-signal `(~qualified-sym ~@exprs)))
+          (let [new-time-sym (gensym "time_")
+                new-args (map #(process-postmap-arg % new-time-sym) args)
             ;; TODO produce this as persistent list directly?
-            new-expr (->> `(fn [~new-time-sym] (~qualified-sym ~@new-args))
-                          (into '())
-                          reverse)]
-        (make-signal new-expr)))))
+                new-expr (->> `(fn [~new-time-sym] (~qualified-sym ~@new-args))
+                              (into '())
+                              reverse)]
+            (make-signal new-expr)))))
 
 (defn apply-premap [sig time-fn]
   (if (const-sig? sig)
