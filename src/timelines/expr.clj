@@ -1,6 +1,8 @@
 (ns timelines.expr
   (:require [timelines.protocols :refer :all]
-            [timelines.utils :as util]))
+            [timelines.utils :as util]
+            [clojure.spec.alpha :as s]
+            [timelines.specs :as ts]))
 
 (declare symbolic-apply-direct
          symbolic-apply-indirect
@@ -8,41 +10,46 @@
          symbolic-higher-order-apply-to-input
          symbolic-higher-order-apply-to-output)
 
-(defn fn? [expr]
-  (and (instance? clojure.lang.PersistentList expr)
-       ;; TODO optionally many bodies
-       (= 3 (count expr))
-       (= 'fn (util/strip-symbol-ns-qualifiers (first expr)))
-       (instance? clojure.lang.PersistentVector (second expr))
-       ;; (instance? clojure.lang.PersistentVector (second expr))
-       ))
+(defn parse-fn [e]
+  (s/conform :clojure/lambda-expr e))
 
-(defn assert-fn [expr]
-  (if (fn? expr)
-    true
-    (throw (AssertionError. (str "Not proper fn expression: " expr)))))
+(defn fn-args [e]
+  (->> e parse-fn :args))
 
-;; TODO big
+(defn fn-return-e [e]
+  (->> e parse-fn :body last))
+
+(defn fn-body [e]
+  (->> e (s/conform :clojure/lambda-expr) :body))
+
+(defn fn? [e]
+  (s/valid? :clojure/lambda-expr e))
+
+(defn ->clojure-fn
+  "Returns an actually `eval`able expression"
+  [e]
+  (let [{:keys [args body]} (parse-fn e)]
+    (concat
+     (list 'clojure.core/fn (into [] args))
+     body)))
+
+;; TODO  @correctness @performance
+;; Useful for being able to tell whether functions are
+;; functionally equivalent even if their exprs differ slightly
 (defn simplify [expr]
   expr)
-
-;; TODO more robust testing
-;;
 
 (defn sigfn? [expr]
   (and (-> expr simplify fn?)
        (= 1 (count (second expr)))))
 
-(defn assert-sigfn [expr]
-  (if (sigfn? expr)
-    true
-    (throw (AssertionError. (str "Not proper Signal fn expression: " expr)))))
-
 (defn sigfn->time-arg [expr]
-  (assert-sigfn expr)
   (-> expr second first))
 
 (defn sigfn->replace-time-arg [sigfn new-time-arg-sym]
   (let [old-time-arg (sigfn->time-arg sigfn)
         old-body (nth sigfn 2)]
     (util/replace-sym old-body old-time-arg new-time-arg-sym)))
+
+;; (defn postmap [post-f f]
+;;   (update-body f ()))

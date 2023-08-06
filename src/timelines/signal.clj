@@ -96,7 +96,6 @@
   `(def ~name (signal ~expr)))
 
 ;; NOTE the most important signal
-(defsig t (fn [time_0] time_0))
 
 ;; TODO @robustness more thorough checks
 (defn time-arg [{:keys [expr const?] :as sig}]

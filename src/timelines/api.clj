@@ -1,12 +1,14 @@
 (ns timelines.api
   (:require
    [timelines.base-api :as base]
-   [timelines.signal :refer :all]
+   [timelines.signal :refer [defsig var-sig? apply-premap apply-postmap]]
    [timelines.expr :as expr]
    [timelines.utils :as util]
    [timelines.macros :refer [with-ns <- <<- <-as]] ;; ->
    [timelines.protocols :refer :all]
    [clojure.pprint :refer [pprint]]))
+
+(defsig t (fn [time_0] time_0))
 
 (defmacro ->map
   [args]
