@@ -155,13 +155,8 @@
 (defonce *broken? (atom false))
 (defonce *stacktrace-printed? (atom false))
 
-(timelines.protocols/draw (rect 1 2 3 4))
-
 (defn draw []
-  (let [x (apply-paint (paint (from-list [red red blue] bar))
-                       (rect 40 20 250 340))
-        y (rect 120 120 250 250)]
-    (draw-at [x y] (now)))
+  (.drawRect @*main-canvas (Rect/makeXYWH 200 200 500 500) (Paint.))
   #_(draw-at broken-scene (now))
   #_(try
       (do

@@ -3,6 +3,8 @@
 (def dependencies
   '[[org.clojure/clojure "1.11.1"]
     [org.jetbrains.skija/skija-linux "0.93.1"]
+    ;; [org.lwjgl/lwjgl-glfw "3.3.2"]
+    ;; [org.lwjgl/lwjgl "3.3.2"]
     [nrepl "1.1.0-alpha1"]
     [org.typedclojure/typed.clj.runtime "1.0.32"]
     [org.clojure/test.check "1.1.1"]

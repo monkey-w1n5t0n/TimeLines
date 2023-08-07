@@ -116,7 +116,7 @@
 
 (s/def ::defgraphic-call
   (s/cat :name simple-symbol?
-         :params :clojure/arglist
+         :params :clojure.expr.fn/arglist
          :protocol-impls (s/* (s/cat :protocol simple-symbol?
                                      :impls (s/+ list?)))))
 

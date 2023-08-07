@@ -3,6 +3,7 @@
    [nrepl.server :as nrepl]
    [timelines.globals :refer [*main-canvas screen-width screen-height]]
    [timelines.editor :as editor]
+   [timelines.keyboard :as key]
    [timelines.utils :refer [color]])
 
   (:import
@@ -48,6 +49,11 @@
     (doto (Thread. #(clojure.main/main))
       (.start))
 
+    (GLFW/glfwSetKeyCallback window
+                             (reify GLFWKeyCallbackI
+                               (invoke [this _ key _ action mods]
+                                 (#'key/handle-event key action))))
+
     (nrepl/start-server :port 7888)
     (println "nREPL server started at locahost:7888")
 
@@ -87,3 +93,6 @@
       (GLFW/glfwTerminate)
       (.free (GLFW/glfwSetErrorCallback nil))
       (shutdown-agents))))
+
+(comment
+  (-main))

@@ -102,7 +102,7 @@
   (assert (instance? Signal sig))
   (if const?
     nil
-    (expr/sigfn->time-arg expr)))
+    (expr/time-arg expr)))
 
 ;; TODO take into account expressions like (fn [t] 5), which should be considered const
 ;; TODO Simplify signal expression first
