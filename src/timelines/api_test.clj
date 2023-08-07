@@ -160,10 +160,25 @@
 (defonce *broken? (atom false))
 (defonce *stacktrace-printed? (atom false))
 
+(defn draw-fps [n]
+  (draw-at
+   (text (str "FPS: " (int n))
+         3
+         (- screen-height 3)
+         20
+         (paint black))
+   (now)))
+
 (defn draw-screen []
+  (println "made it here 2")
   (try
     (do
-      (draw-at scene (now))
+
+      (draw-at (rect 10 10 200 300) (now))
+      (println "made it here 3")
+      (draw-at [(rect 100 100 200 300) (rect 10 20 30 40)] (now))
+      (println "made it here 4")
+
       (reset! *broken? false)
       (reset! *stacktrace-printed? false))
     (catch Exception e

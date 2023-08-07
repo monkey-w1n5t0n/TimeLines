@@ -2,7 +2,8 @@
   (:require
    [nrepl.server :as nrepl]
    [timelines.globals :refer [*main-canvas screen-width screen-height]]
-   [timelines.editor :as editor]
+   ;; [timelines.editor :as editor]
+   [timelines.api-test :as api]
    [timelines.keyboard :as key]
    [timelines.utils :refer [color]])
 
@@ -70,17 +71,38 @@
       ;; Continue...
       (.scale canvas scale-x scale-y)
       (reset! *main-canvas canvas)
-      (loop []
-        (when (not (GLFW/glfwWindowShouldClose window))
-          (.clear canvas (color 0xFFFFFFFF))
-          (let [layer (.save canvas)]
-            (#'editor/draw)
-            (.restoreToCount canvas layer))
-          (.flush context)
-          (GLFW/glfwSwapBuffers window)
-          (GLFW/glfwPollEvents)
-          (recur)))
+      ;; Main loop
+      (println "made it here 1")
+      (let [time-deltas (atom [])
+            avg-fps (atom 0)]
+        (loop []
+          (when (not (GLFW/glfwWindowShouldClose window))
+            (let [start-time (System/nanoTime)]
+              ;; RENDER
+              (.clear canvas (color 0xFFFFFFFF))
+              (let [layer (.save canvas)]
+                (#'api/draw-screen)
+                (#'api/draw-fps @avg-fps)
+                (.restoreToCount canvas layer))
+              (.flush context)
+              (GLFW/glfwSwapBuffers window)
+              (GLFW/glfwPollEvents)
+              ;; FPS
+              (swap! time-deltas conj (- (System/nanoTime) start-time))
 
+              ;; Keep only the last 100 time measurements to calculate FPS
+              (when (> (count @time-deltas) 100)
+                (swap! time-deltas subvec 1))
+
+              ;; Calculate and print FPS every 100 frames
+              (when (zero? (mod (count @time-deltas) 100))
+                (let [avg-time (/ (reduce + @time-deltas) (count @time-deltas))
+                      fps (/ 1e9 avg-time)]
+                  (reset! avg-fps fps)))
+
+              (recur)))))
+
+      ;; Shutdown
       (Callbacks/glfwFreeCallbacks window)
       (GLFW/glfwHideWindow window)
       (GLFW/glfwDestroyWindow window)

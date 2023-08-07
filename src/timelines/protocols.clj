@@ -107,16 +107,16 @@
     ))
 
 ;; SymbolicExpr
-(do
+#_(do
 
-  (defprotocol P-SymbolicExpr
-    (->expr [this]))
+    (defprotocol P-SymbolicExpr
+      (->expr [this]))
 
-  (templated-protocol-impl 'P-SymbolicExpr id-types '(->expr [this] this))
+    (templated-protocol-impl 'P-SymbolicExpr id-types '(->expr [this] this))
 
-  (let [types (->> '[PersistentList PersistentVector]
-                   (map #(u/symbol-prepend "clojure.lang." %)))]
-    (templated-protocol-impl 'P-SymbolicExpr types '(->expr [this] (fmap ->expr this)))))
+    (let [types (->> '[PersistentList PersistentVector]
+                     (map #(u/symbol-prepend "clojure.lang." %)))]
+      (templated-protocol-impl 'P-SymbolicExpr types '(->expr [this] (fmap ->expr this)))))
 
 ;; Drawing
 (defprotocol P-Drawable

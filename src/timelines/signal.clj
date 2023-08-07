@@ -1,7 +1,7 @@
 (ns timelines.signal
   (:require [timelines.utils :as u]
-            [timelines.protocols :refer [P-Samplable P-Bifunctor P-SymbolicExpr
-                                         sample-at postmap premap ->expr]]
+            [timelines.protocols :refer [P-Samplable P-Bifunctor
+                                         sample-at postmap premap]]
             [timelines.expr :as e]
             ;; [timelines.signal.api :refer :all]
             ;; [timelines.expr.core :as expr :refer :all]
@@ -39,6 +39,8 @@
   ;; SAMPLABLE
   P-Samplable
   ;; TODO @robustness make sure the time arg is correct type
+  ;; TODO @correctness the expr may actually be an fn of no arguments,
+  ;; in which case it should be evalled and then called
   (sample-at [this time]
     (if const?
       (eval expr)
@@ -62,18 +64,21 @@
       (postmap this post-fn)
       (-> this
           (premap pre-fn)
-          (postmap post-fn))))
-
-  P-SymbolicExpr
-  (->expr [this] expr))
+          (postmap post-fn)))))
 
 ;; TODO abstract const expr checking into its own function
 ;; TODO test with postmap ops
-(defn make-signal [expr]
-  (if (instance? Signal expr)
-    expr
-    (->Signal expr
-              (not (e/sigfn? expr)))))
+(defn make-signal [e]
+  (if (instance? Signal e)
+    e
+    (->Signal e (e/const? e))))
+
+(defn ->expr [x]
+  (condp instance? x
+    Signal (:expr x)
+    clojure.lang.PersistentList (->> x (map #(->expr %)) (into '()) reverse)
+    clojure.lang.PersistentVector (transduce (map ->expr) conj x)
+    x))
 
 (comment
   (make-signal '(fn [t] (+ t 2))))

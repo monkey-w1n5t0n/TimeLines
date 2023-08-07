@@ -1,7 +1,7 @@
 (ns timelines.expr
   (:require
    [timelines.protocols :as p]    ;
-   [timelines.utils :as util]
+   [timelines.utils :as u]
    [clojure.spec.alpha :as s]
    [timelines.specs :as ts]))
 
@@ -26,7 +26,7 @@
   (->> e parse-fn :body last))
 
 (defn fn-body [e]
-  (->> e (s/conform :clojure/lambda-expr) :body))
+  (->> e (s/conform :clojure.expr/fn) :body))
 
 ;; (->clojure-fn {:args '[x y] :body ['(+ x y)]})
 
@@ -47,7 +47,7 @@
 (defn sigfn->replace-time-arg [sigfn new-time-arg-sym]
   (let [old-time-arg (time-arg sigfn)
         old-body (nth sigfn 2)]
-    (util/replace-sym old-body old-time-arg new-time-arg-sym)))
+    (u/replace-sym old-body old-time-arg new-time-arg-sym)))
 
 ;; (defn postmap [post-f f]
 ;;   (update-body f ()))
@@ -76,3 +76,8 @@
         new-body (list '-> time-arg e f)
         new-expr (list 'fn [time-arg] new-body)]
     new-expr))
+
+(defn const? [e]
+  (or (not (sigfn? e))
+      (u/not-in? (flatten (fn-body e))
+                 (time-arg e))))

@@ -12,6 +12,8 @@
   [coll elm]
   (some #(= elm %) coll))
 
+(def not-in? (comp not in?))
+
 (defn list-contains? [lst element]
   (some (set [element])
         lst))
