@@ -1,20 +1,13 @@
 (ns timelines.signal
-  (:require [timelines.utils :as util]
+  (:require [timelines.utils :as u]
             [timelines.protocols :refer [P-Samplable P-Bifunctor P-SymbolicExpr
                                          sample-at postmap premap ->expr]]
-            [timelines.expr :as expr]
+            [timelines.expr :as e]
             ;; [timelines.signal.api :refer :all]
             ;; [timelines.expr.core :as expr :refer :all]
             [clojure.pprint :refer [pprint]]
             ;; [timelines.signal :as signal]
             ))
-
-(comment
-
-  TESTS
-
-  (sample-at t 3.14))
-
 ;; TODO operators updating parameters such as :range, :min, :max etc
 
 (declare apply-premap)
@@ -80,7 +73,7 @@
   (if (instance? Signal expr)
     expr
     (->Signal expr
-              (not (expr/sigfn? expr)))))
+              (not (e/sigfn? expr)))))
 
 (comment
   (make-signal '(fn [t] (+ t 2))))
@@ -102,7 +95,7 @@
   (assert (instance? Signal sig))
   (if const?
     nil
-    (expr/time-arg expr)))
+    (e/time-arg expr)))
 
 ;; TODO take into account expressions like (fn [t] 5), which should be considered const
 ;; TODO Simplify signal expression first
@@ -135,7 +128,7 @@
   (cond
     (var-sig? arg)
     (let [expr (:expr arg)]
-      (expr/sigfn->replace-time-arg expr new-time-arg-sym))
+      (e/sigfn->replace-time-arg expr new-time-arg-sym))
 
     ;; TODO @correctness figure out what the difference between (const? ...) and (const-sig? ...) should be
     (and (instance? Signal arg)
@@ -156,39 +149,60 @@
 
 ;; TODO accept <op> to be a map with further info
 ;; e.g. arity, min-max etc
-(defn apply-postmap [{:keys [sym source-ns] :as op} args]
-  (let [qualified-sym (ns-resolve (or source-ns *ns*) sym)]
-    (if (util/all? const-sig? args)
+#_(defn apply-postmap [op ns args]
+    (let [qualified-sym (ns-resolve (or source-ns *ns*) sym)]
+      (if (u/all? const-sig? args)
       ;; TODO write this better
       ;; need to "unbox" all signals and leave everything else as-is
-      (let [exprs (map ->expr args)]
-        (make-signal `(~qualified-sym ~@exprs)))
-      (let [new-time-sym (gensym "time_")
-            new-args (map #(process-postmap-arg % new-time-sym) args)
+        (let [exprs (map ->expr args)]
+          (make-signal `(~qualified-sym ~@exprs)))
+        (let [new-time-sym (gensym "time_")
+              new-args (map #(process-postmap-arg % new-time-sym) args)
             ;; TODO produce this as persistent list directly?
-            new-expr (->> `(fn [~new-time-sym] (~qualified-sym ~@new-args))
-                          (into '())
-                          reverse)]
+              new-expr (->> `(fn [~new-time-sym] (~qualified-sym ~@new-args))
+                            (into '())
+                            reverse)]
+          (make-signal new-expr)))))
+
+(defn apply-postmap [op args]
+  (let [op (if (simple-symbol? op)
+             (ns-resolve *ns* op)
+             op)]
+        ;; All const sigs
+    (if (u/all? const-sig? args)
+      (let [exprs (map ->expr args)]
+        (make-signal `(~op ~@exprs)))
+          ;; At least one variable sig
+      (let [time-arg 't
+            arg-exprs (mapv ->expr args)
+            processed-arg-exprs (mapv #(if (e/sigfn? %)
+                                         (list '-> time-arg (list %))
+                                         %)
+                                      arg-exprs)
+                ;; TODO produce this as persistent list directly?
+            new-expr (list 'clojure.core/fn [time-arg]
+                           (cons op processed-arg-exprs))]
         (make-signal new-expr)))))
 
-(defn apply-premap [sig time-fn]
+(apply-postmap 'clojure.core/+ [(signal (fn [t] (+ 1 t)))
+                                (signal (fn [x] (/ x 2)))])
+
+;; TODO @correctness f should probably be applied to time even if the signal is constant
+;; (while maintaining the :const? attribute)
+;; so that, in the future, if we want to replace a signal's body but keep
+;; all its time transformations we have the option to
+(defn apply-premap [f sig]
   (if (const-sig? sig)
     sig
-    (let [new-time-sym (gensym "time_")
-          old-sigfn (:expr sig)
-          new-expr (->> `(fn [~new-time-sym]
-                           (apply ~old-sigfn
-                                  [(apply ~time-fn [~new-time-sym])]))
-                        (into '())
-                        reverse)]
+    (let [e-apply (list (->expr sig))
+          f-apply (cond
+                    (instance? Signal f) (list (:expr f))
+                    (e/sigfn? f) (list f)
+                    :else f)
+          time-arg 't
+          new-expr (list 'clojure.core/fn [time-arg]
+                         (list '-> time-arg f-apply e-apply))]
       (make-signal new-expr))))
-
-(comment
-  f   = (fn [t] (+ 1 t))
-  sig = (fn [t] (sin t))
-
-  premap =
-  (fn [t] (+ 1 (+ 1 t))))
 
 ;; TODO figure out how to define this for varargs
 ;; (defrecord Postmap-Op [op-sym docstr]

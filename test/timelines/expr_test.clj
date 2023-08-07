@@ -26,25 +26,27 @@
 (-> test-fns first :e e/fn-args)
 
 (deftest is-fn?
-  (doseq [[is? e] [[true '(fn [x] x)]
-                   [true '(fn [x])]
-                   [true '(clojure.core/fn [x] x)]
-                   [true '(fn (x) x)]
-                   [true '[fn [x] x]]
-                   [true '[fn (x) x]]
-                   [true '[fn [x y z hello] (println x) x]]
-                   [true '(fn [x] (+ 1 (/ 3 x)))]
-                   [true '(fn [x] ((fn [y]
-                                     (* 2 y))
-                                   (+ x 1)))]
-                   ;; Falses
-                   [false '(bob [x] x)]
-                   [false '(fn x x)]
-                   [false '(fn x ((fn [y]
-                                    (* 2 y))
-                                  (+ x 1)))]
-                   [false '([x] (+ 1 x))]]]
-    (is (= is? (e/fn? e)))))
+  (doseq [[answer e] [[true '(fn [x] x)]
+                      [true '(fn [x])]
+                      [true '(fn [])]
+                      [true '(clojure.core/fn [x] x)]
+                      ;; Not sure if these should be supported...
+                      ;; [true '(fn (x) x)]
+                      ;; [true '[fn [x] x]]
+                      ;; [true '[fn (x) x]]
+                      [true '(fn [x y z hello] (println x) x)]
+                      [true '(fn [x] (+ 1 (/ 3 x)))]
+                      [true '(fn [x] ((fn [y]
+                                        (* 2 y))
+                                      (+ x 1)))]
+                      ;; Falses
+                      [false '(bob [x] x)]
+                      [false '(fn x x)]
+                      [false '(fn x ((fn [y]
+                                       (* 2 y))
+                                     (+ x 1)))]
+                      [false '([x] (+ 1 x))]]]
+    (is (= answer (e/fn? e)))))
 
 (deftest fns
   (doseq [{:keys [e args body return-e]} test-fns]
@@ -52,10 +54,30 @@
     (is (= body (e/fn-body e)))
     (is (= return-e (e/fn-return-e e)))))
 
-(deftest ->clojure-fn
-  (doseq [[e args result]
-          [['(fn [])                        []       nil]
-           ['(fn [x] x)                     [1]      1]
-           ['[clojure.core/fn [x] (+ 1 x)] [1.5]    2.5]
-           ['(fn (x y) (+ x y))             [1.5 10] 11.5]]]
-    (is (= result (-> e e/->clojure-fn eval (apply args))))))
+(deftest premapping
+  (doseq  [[e f result]
+           '[[(fn [t] t)
+              (+ 1)
+              (fn [t] (-> t
+                          (+ 1)
+                          ((fn [t] t))))]
+             [(fn [t] t)
+              (fn [x] (+ x 1))
+              (fn [t] (-> t
+                          ((fn [x] (+ x 1)))
+                          ((fn [t] t))))]]]
+    (is (= result (e/sigfn-premap e f)))))
+
+(deftest postmapping
+  (doseq  [[e f result]
+           '[[(fn [t] t)
+              (+ 1)
+              (fn [t] (-> t
+                          ((fn [t] t))
+                          (+ 1)))]
+             [(fn [t] t)
+              (fn [x] (+ x 1))
+              (fn [t] (-> t
+                          ((fn [t] t))
+                          ((fn [x] (+ x 1)))))]]]
+    (is (= result (e/sigfn-postmap e f)))))

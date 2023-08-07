@@ -156,7 +156,7 @@
 (defonce *stacktrace-printed? (atom false))
 
 (defn draw []
-  (.drawRect @*main-canvas (Rect/makeXYWH 200 200 500 500) (Paint.))
+  (draw-at (rect 10 (* 100 (mod1 t)) 200 300) (now))
   #_(draw-at broken-scene (now))
   #_(try
       (do

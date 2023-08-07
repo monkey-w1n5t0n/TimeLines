@@ -2,7 +2,8 @@
   (:require  [clojure.test :as t]
              [clojure.walk :refer [prewalk postwalk]]
              [clojure.stacktrace :as stacktrace]
-             [timelines.graphics :refer :all]
+             [timelines.colors :refer :all]
+             [timelines.graphics :refer [apply-paint paint rect text]]
              [timelines.api :refer :all]
              [timelines.signal :refer :all]
              [timelines.protocols :refer [draw sample-at]]
@@ -72,8 +73,8 @@
   (def space-w (- screen-width browser-w))
   (def space-h modeline-y)
 
-  (def browser (-> (rect browser-x browser-y browser-w browser-h)
-                   (paint (make-paint palette-blue-medium))))
+  (def browser (->> (rect browser-x browser-y browser-w browser-h)
+                    (apply-paint  (paint palette-blue-medium))))
 
   (def amp-expr '(+ 0.5 (* 0.2 (sine01 (* twoPi (slow 2 bar))))))
   (def melody-expr '(from-list [0 0 3 0 2 2 5 12] bar))
@@ -87,12 +88,12 @@
           node-y 20
           node-width 590
           node-height 200
-          node-background-paint (make-paint palette-blue-medium)
-          node-stroke-paint (make-paint palette-red palette-red :stroke 2)
+          node-background-paint (paint palette-blue-medium)
+          node-stroke-paint (paint palette-red :stroke 2)
           param-size 25
           expr-size 18
-          key-paint (make-paint palette-red)
-          text-paint (make-paint palette-white)
+          key-paint (paint palette-red)
+          text-paint (paint palette-white)
           background (-> (rect node-x node-y node-width node-height 20)
                          (paint node-background-paint))
           parameters
@@ -115,7 +116,7 @@
 
   (def space
     (let [space-background (-> (rect  space-x space-y space-w space-h)
-                               (paint (make-paint palette-blue-dark)))]
+                               (paint (paint palette-blue-dark)))]
       [space-background test-node]))
 
   (def name (from-list ["Bob" "Dave" "Nick" "Mary" "HeheheheHEHEHEHE"]
@@ -135,19 +136,19 @@
 
   ;; (def modeline [line-number file])
   (def modeline (-> (rect modeline-x modeline-y screen-width modeline-height)
-                    (paint (make-paint palette-blue-light))))
+                    (paint (paint palette-blue-light))))
 
   (def scene [window
               modeline]))
 
 (def broken-scene
   [(-> (rect 0 0 screen-width screen-height)
-       (paint (make-paint red)))
+       (paint (paint red)))
    (let [color (from-list [black blue
                            (from-list [black white black white] (fast 2 beat))
                            black white]
                           (fast 2 bar))
-         text-paint (make-paint color)
+         text-paint (paint color)
          text-x (* bar (* 1.2 screen-width))
          text-y (/ screen-height 2)
          text-size (* 50 (-> t

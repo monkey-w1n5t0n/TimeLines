@@ -26,7 +26,7 @@
   (defn fmap [f obj]
     (fmap* obj f))
 
-  (let [types (->> '[PersistentList PersistentVector ArraySeq]
+  (let [types (->> '[PersistentVector ArraySeq]
                    (map #(u/symbol-prepend "clojure.lang." %)))]
     (templated-protocol-impl 'P-Functor
                              types
@@ -35,6 +35,13 @@
 
   ;; TODO @correctness @performance test and profile these
   (extend-protocol P-Functor
+    ;; TODO @performance there's got to be a better way for lists...
+    ;; something like foldl so that it doesn't have to be reversed?
+    clojure.lang.PersistentList
+    (fmap* [coll f]
+      (reverse
+       (into '() (map f coll))))
+
     clojure.lang.PersistentArrayMap
     (fmap* [coll f]
       (reduce (fn [acc [k v]]

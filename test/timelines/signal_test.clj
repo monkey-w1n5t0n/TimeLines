@@ -1,5 +1,6 @@
 (ns timelines.signal-test
-  (:require [timelines.signal :refer :all]
+  (:require [timelines.signal :as s]
+            [timelines.signal :refer [defsig signal make-signal]]
             [timelines.api :as api]
             [timelines.protocols :refer [sample-at]]
             [clojure.test :refer :all]))
@@ -23,13 +24,35 @@
          (sample-at {:hi "hello" :world api/t}
                     (/ -5 8)))))
 
-(let [exprs ['[(fn [t] t) (+ 1) (fn [t] (+ 1 t))]
-             '[(fn [t] t) (+ 2.5) (fn [t] (+ 2.5 t))]
-             '[(fn [t] t) (/ (/ 1 3)) (fn [t] (/ (/ 1 3)
-                                                 t))]]]
-  (deftest premap
-    (doseq [[sig-expr postmap-expr result] exprs]
-      (is (= result (expr/postmap postmap-expr sig-expr))))))
+(deftest postmapping
+  (doseq [[op args result]
+          [['clojure.core/+ '[1 2 3]
+            (make-signal '(clojure.core/+ 1 2 3))]
+           ['clojure.core/+ [1 2 (signal (fn [t] t))]
+            (make-signal '(clojure.core/fn [t] (clojure.core/+ 1 2 (-> t ((fn [t] t))))))]
+           ['clojure.core/+ [(make-signal '(fn [t] (+ 1 t)))
+                             (make-signal '(fn [x] (/ x 2)))]
+            (make-signal '(clojure.core/fn [t] (clojure.core/+ (-> t ((fn [t] (+ 1 t))))
+                                                               (-> t ((fn [x] (/ x 2)))))))]]]
+    (is (= (:expr result) (:expr (s/apply-postmap op args))))))
+
+(deftest premapping
+  (doseq [[s f result]
+          ['[1 (+ 1) 1]
+           '["hello" (/ 8.5) "hello"]
+           '[:hi (clojure.core/fn [x] (/ x 8.5)) :hi]
+           [(make-signal '(clojure.core/fn [t] t))
+            'clojure.core/inc
+            (make-signal '(clojure.core/fn [t] (-> t clojure.core/inc ((clojure.core/fn [t] t)))))]
+           [(make-signal '(clojure.core/fn [t] (/ t 2)))
+            'clojure.core/inc
+            (make-signal '(clojure.core/fn [t] (-> t clojure.core/inc ((clojure.core/fn [t] (/ t 2))))))]
+           [(make-signal '(clojure.core/fn [t] (+ 1 t)))
+            (make-signal '(clojure.core/fn [x] (/ x 2)))
+            (make-signal '(clojure.core/fn [t] (-> t
+                                                   ((clojure.core/fn [x] (/ x 2)))
+                                                   ((clojure.core/fn [t] (+ 1 t))))))]]]
+    (is (= result (s/apply-premap f s)))))
 
 ;; (deftest sampling
 ;;   (testing "Sampling signals, using both `sample-at-impl` and `sample-at`"
