@@ -3,17 +3,8 @@
             [timelines.utils :as u]
             [clojure.walk :refer [postwalk prewalk]]
             [clojure.spec.alpha :as s]
+            [timelines.debug :refer [*dbg]]
             [timelines.macros :as m]))
-
-(def id-types '[Number Long Integer Double Float clojure.lang.Ratio
-                String clojure.lang.Keyword clojure.lang.Symbol])
-
-(defn templated-protocol-impl [protocol types & bodies]
-  (doseq [t types]
-    (let [expr (concat (list 'extend-protocol protocol t)
-                       bodies)]
-      (println expr)
-      (eval expr))))
 
 ;; General
 (do
@@ -23,15 +14,6 @@
     (fmap* [coll f]))
 
   ;; Convenience function because protocols dispatch on the first argument
-  (defn fmap [f obj]
-    (fmap* obj f))
-
-  (let [types (->> '[PersistentVector ArraySeq]
-                   (map #(u/symbol-prepend "clojure.lang." %)))]
-    (templated-protocol-impl 'P-Functor
-                             types
-                             '(fmap* [this f]
-                                     (into (empty this) (r/map f this)))))
 
   ;; TODO @correctness @performance test and profile these
   (extend-protocol P-Functor
@@ -41,6 +23,10 @@
     (fmap* [coll f]
       (reverse
        (into '() (map f coll))))
+
+    clojure.lang.PersistentVector
+    (fmap* [coll f]
+      (into [] (r/map f coll)))
 
     clojure.lang.PersistentArrayMap
     (fmap* [coll f]
@@ -56,21 +42,49 @@
               (empty coll)
               coll)))
 
+  (defn fmap [f obj]
+    (fmap* obj f))
+
 ;;;; UNBOXABLE
   ;; Not really used atm
   (defprotocol P-Unboxable
     (unbox [this] "Unbox a datatype, e.g. to get the graph out of a Signal."))
 
-  (templated-protocol-impl 'P-Unboxable id-types '(unbox [this] this))
+  (extend-protocol P-Unboxable
+    Number
+    (unbox [this] this)
 
-  ;; TODO @performance would it be faster to use Specter for this and similar?
+    Long
+    (unbox [this] this)
 
-  ;; ID types
-  (let [types (->> '[PersistentList PersistentVector PersistentArrayMap PersistentHashMap]
-                   (map #(u/symbol-prepend "clojure.lang." %)))]
-    (templated-protocol-impl 'P-Unboxable
-                             types
-                             '(unbox [this] (fmap unbox this)))))
+    Integer
+    (unbox [this] this)
+
+    clojure.lang.Ratio
+    (unbox [this] this)
+
+    Double
+    (unbox [this] this)
+
+    Float
+    (unbox [this] this)
+
+    String
+    (unbox [this] this)
+
+    clojure.lang.Keyword
+    (unbox [this] this)
+
+    clojure.lang.Symbol
+    (unbox [this] this)
+
+    clojure.lang.PersistentList
+    (unbox [this]
+      (apply list (map unbox this)))
+
+    clojure.lang.PersistentVector
+    (unbox [this]
+      (apply vector (map unbox this)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;
 ;; Signal-related
@@ -82,30 +96,72 @@
 
   (defprotocol P-Samplable
     ;; TODO should this be time-varying too?
-    (sample-at [this t] "Evaluate a signal at a specific moment in time.")
+    (sample-at-impl [this t] "Evaluate a signal at a specific moment in time.")
     #_(signal-type [this] [this t] "The type of the signal. If only one argument is provided,
                                 the type is assumed to be unchanging over time. If a time
                                 argument is provided, the signal is sampled at that time
                                 and the type of its value is returned."))
-  ;; ID types
-  (templated-protocol-impl 'P-Samplable id-types
-                           '(sample-at [this _] this))
-
-  (let [types (->> '[ArraySeq PersistentList PersistentVector PersistentArrayMap PersistentHashMap]
-                   (map #(u/symbol-prepend "clojure.lang." %)))]
-    (templated-protocol-impl 'P-Samplable types '(sample-at [this t] (fmap #(sample-at % t) this))))
 
   (extend-protocol P-Samplable
     clojure.lang.Var
-    (sample-at [this t]
-      (-> this var-get (sample-at t)))
-    ;; Does it even make sense to sample a function (i.e. getting back another function)?
-    ;; clojure.lang.Fn
-    ;; (sample-at [this t]
-    ;;   (assert (= 1 (u/fn-arg-count this)))
-    ;;   (this t))
-    ))
+    (sample-at-impl [this t]
+      (-> this var-get (sample-at-impl t)))
 
+    clojure.lang.ArraySeq
+    (sample-at-impl [this t]
+      (into (empty this)
+            (map #(sample-at-impl % t)
+                 this)))
+
+    clojure.lang.PersistentArrayMap
+    (sample-at-impl [this t]
+      (into {} (for [[k v] this]
+                 [k (sample-at-impl v t)])))
+
+    Number
+    (sample-at-impl [this _] this)
+
+    Long
+    (sample-at-impl [this _] this)
+
+    Integer
+    (sample-at-impl [this _] this)
+
+    clojure.lang.Ratio
+    (sample-at-impl [this _] this)
+
+    Double
+    (sample-at-impl [this _] this)
+
+    Float
+    (sample-at-impl [this _] this)
+
+    String
+    (sample-at-impl [this _] this)
+
+    clojure.lang.Keyword
+    (sample-at-impl [this _] this)
+
+    clojure.lang.Symbol
+    (sample-at-impl [this _] this)
+
+    clojure.lang.PersistentList
+  ;; (sample-at-impl [this t]
+  ;;   ;; (eval)
+  ;;   ;; look at note re: into vs apply
+  ;;   (println "list sample-at-implh")
+  ;;   (into '()
+  ;;         (map #(sample-at-impl % t) this)))
+    (sample-at-impl [this t]
+      (fmap #(sample-at-impl % t) this))
+  ;; TODO @robustness is this correct? probably not
+
+    clojure.lang.PersistentVector
+    (sample-at-impl [this t]
+      (into []
+            (map #(sample-at-impl % t) this)))
+  ;; TODO @robustness is this correct?
+    ))
 ;; SymbolicExpr
 #_(do
 
@@ -121,21 +177,31 @@
 ;; Drawing
 (defprotocol P-Drawable
   "Draw a static object"
-  (draw [this] [this canvas]))
+  (draw-impl [this] [this canvas]))
 
-(let [types (->> '[PersistentList PersistentVector]
-                 (map #(u/symbol-prepend "clojure.lang." %)))]
-  (templated-protocol-impl 'P-Drawable types
-                           '(draw [this] (draw this @timelines.globals/*main-canvas))
-                           '(draw [this canvas] (doseq [x this]
-                                                  (when x (draw x canvas))))))
+(defn draw [x]
+  (when @*dbg
+    (println (str "draw arg: " x)))
+  (draw-impl x))
 
-(let [types (->> '[PersistentArrayMap PersistentHashMap]
-                 (map #(u/symbol-prepend "clojure.lang." %)))]
-  (templated-protocol-impl 'P-Drawable types
-                           '(draw [this] (draw this @timelines.globals/*main-canvas))
-                           '(draw [this canvas] (doseq [x (vals this)]
-                                                  (when x (draw x canvas))))))
+(extend-protocol P-Drawable
+  clojure.lang.PersistentVector
+  (draw-impl [this] (doseq [x this]
+                      (when x
+                        (draw x))))
+
+  clojure.lang.PersistentList
+  (draw-impl [this] (doseq [x this]
+                      (when x (draw x))))
+
+  clojure.lang.PersistentHashMap
+  (draw-impl [this] (doseq [x (vals this)]
+                      (when x (draw x))))
+
+  clojure.lang.PersistentArrayMap
+  (draw-impl [this] (doseq [x (vals this)]
+                      (when x
+                        (draw x)))))
 
 ;; (defprotocol P-Samplable+Drawable
 ;;   (draw-at [this t] "Draw a signal graphics object."))
@@ -155,12 +221,16 @@
     ;; TODO @optimisation shouldn't have to travel the list twice
     (range [this] [(min this) (max this)])
     (range-at [this t]
-      (let [sampled (mapv #(sample-at % t) this)]
+      (let [sampled (mapv #(sample-at-impl % t) this)]
         [(min sampled) (max sampled)]))))
 
 (defprotocol P-Skijable
-  (->skija [this]))
+  (->skija-impl [this]))
 
+(defn ->skija [x]
+  (when @*dbg
+    (println (str "->skija arg: " x)))
+  (->skija-impl x))
 ;; Unused
 (do
   (deftype reader-f [v rf f]
@@ -182,4 +252,9 @@
       (f e (rf e)))))
 
 (defn draw-at [obj t]
-  (-> obj (sample-at t) draw))
+  (-> obj (sample-at-impl t) draw))
+
+(defn sample-at [x t]
+  (when @*dbg
+    (println (str "sample-at args: " x ", t")))
+  (sample-at-impl x t))

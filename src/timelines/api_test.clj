@@ -138,47 +138,42 @@
   (def modeline (-> (rect modeline-x modeline-y screen-width modeline-height)
                     (paint (paint palette-blue-light))))
 
-  (def scene [window
-              modeline]))
+  #_(def scene [window
+                modeline]))
+
+(def scene [(rect 10 50 (+ 100 (* 100 (sine t))) 200)])
 
 (def broken-scene
   [(-> (rect 0 0 screen-width screen-height)
-       (paint (paint red)))
-   (let [color (from-list [black blue
-                           (from-list [black white black white] (fast 2 beat))
-                           black white]
-                          (fast 2 bar))
-         text-paint (paint color)
-         text-x (* bar (* 1.2 screen-width))
-         text-y (/ screen-height 2)
-         text-size (* 50 (-> t
-                             (* twoPi)
-                             sine01
-                             (+ 0.5)))]
-     (text "BROKEN" text-x text-y text-size text-paint))])
+       #_(apply-paint (paint red)))
+   #_(let [color (from-list [black blue
+                             (from-list [black white black white] (fast 2 beat))
+                             black white]
+                            (fast 2 bar))
+           text-paint (paint color)
+           text-x (* bar (* 1.2 screen-width))
+           text-y (/ screen-height 2)
+           text-size (* 50 (-> t
+                               (* twoPi)
+                               sine01
+                               (+ 0.5)))]
+       (text "BROKEN" text-x text-y text-size text-paint))])
 
 (defonce *broken? (atom false))
 (defonce *stacktrace-printed? (atom false))
 
 (defn draw-fps [n]
-  (draw-at
-   (text (str "FPS: " (int n))
-         3
-         (- screen-height 3)
-         20
-         (paint black))
-   (now)))
+  (draw-at (text (str "FPS: " (int n))
+                 3
+                 (- screen-height 3)
+                 20
+                 (paint black))
+           (now)))
 
 (defn draw-screen []
-  (println "made it here 2")
   (try
     (do
-
-      (draw-at (rect 10 10 200 300) (now))
-      (println "made it here 3")
-      (draw-at [(rect 100 100 200 300) (rect 10 20 30 40)] (now))
-      (println "made it here 4")
-
+      (draw-at scene (now))
       (reset! *broken? false)
       (reset! *stacktrace-printed? false))
     (catch Exception e

@@ -9,21 +9,27 @@
    [timelines.macros :refer [defs letmap pprint defgraphics]]
    [timelines.time :refer [now]]
    [timelines.globals :refer [*main-canvas]]
-   [timelines.protocols :refer [P-Samplable P-Drawable P-Skijable ->skija draw sample-at draw-at]] ; P-Samplable+Drawable
+   [timelines.protocols :refer [P-Samplable P-Drawable P-Skijable ->skija ->skija-impl draw draw-impl sample-at-impl sample-at draw-at]] ; P-Samplable+Drawable
    [timelines.macros :as macro]
+   [timelines.debug :refer [*dbg]]
+   [timelines.skija :as sk]
    [timelines.specs :as specs]
    [clojure.spec.alpha :as s]
    [timelines.globals :as globals]
    [timelines.skija :as sk])
   (:import
-   [org.jetbrains.skija Path Canvas PaintMode]))
+   [org.jetbrains.skija Path Canvas PaintMode Typeface Font]))
+
+(sk/init)
 
 ;; Container
 (do
   (defgraphics Container [x y contents]
     P-Drawable
-    (draw [this] (draw this @timelines.globals/*main-canvas))
-    (draw [this canvas] (doseq [x contents] (draw x canvas)))))
+    (draw-impl [this]
+               (doseq [x contents]
+                 (when x
+                   (draw x))))))
 
 ;; Shapes
 (do
@@ -31,19 +37,19 @@
 
   (defgraphics Rect [x y w h r]
     P-Skijable
-    (->skija [this]
-             (if (and r (> r 0))
-               (org.jetbrains.skija.RRect/makeXYWH x y w h r)
-               (org.jetbrains.skija.Rect/makeXYWH x y w h)))
+    (->skija-impl [this]
+                  (if (and r (> r 0))
+                    (org.jetbrains.skija.RRect/makeXYWH x y w h r)
+                    (org.jetbrains.skija.Rect/makeXYWH x y w h)))
 
     P-Drawable
-    (draw [this] (draw this @timelines.globals/*main-canvas))
-    (draw [{:keys [r paint] :as this} canvas]
-          (let [rect (->skija this)
-                paint (->skija  (or paint default-paint))]
-            (if (and r (> r 0))
-              (.drawRRect canvas rect paint)
-              (.drawRect canvas rect paint)))))
+    #_(draw-impl [this] (draw this @timelines.globals/*main-canvas))
+    (draw-impl [{:keys [r paint] :as this}]
+               (let [rect (->skija this)
+                     paint (->skija  (or paint default-paint))]
+                 (if (and r (> r 0))
+                   (.drawRRect @*main-canvas rect paint)
+                   (.drawRect @*main-canvas rect paint)))))
   (defn rect
     ([x y w h]
      (map->Rect {:x x :y y :w w :h h}))
@@ -59,15 +65,14 @@
   ;; Oval
   (defgraphics Oval [x y w h]
     P-Skijable
-    (->skija
+    (->skija-impl
      [this] (org.jetbrains.skija.Rect/makeXYWH x y w h))
 
     P-Drawable
-    (draw [this] (draw this @timelines.globals/*main-canvas))
-    (draw [{:keys [paint] :as oval} canvas]
-          (let [oval (->skija oval)
-                paint (->skija paint)]
-            (.drawOval canvas oval paint)))))
+    (draw-impl [{:keys [paint] :as oval}]
+               (let [oval (->skija oval)
+                     paint (->skija paint)]
+                 (.drawOval @*main-canvas oval paint)))))
 
 ;; Paints
 (do
@@ -82,19 +87,19 @@
 
   (defgraphics Paint [color alpha style stroke-width stroke-cap]
     P-Skijable
-    (->skija [{:keys [color style stroke-width alpha] :as paint}]
-             (doto (org.jetbrains.skija.Paint.)
-               (.setColor (u/color (or color default-color)))
-               (.setStrokeWidth (or stroke-width default-stroke-width))
-               (.setMode (paint-style->skija (or style default-paint-style)))
-               (.setAlphaf (or alpha 1.0)))))
+    (->skija-impl [{:keys [color style stroke-width alpha] :as paint}]
+                  (doto (org.jetbrains.skija.Paint.)
+                    (.setColor (u/color (or color default-color)))
+                    (.setStrokeWidth (or stroke-width default-stroke-width))
+                    (.setMode (paint-style->skija (or style default-paint-style)))
+                    (.setAlphaf (or alpha 1.0)))))
 
   (s/def ::paint #(instance? Paint %))
 
   ;; TODO @design this shouldn't really exist, should it?
   (extend-protocol P-Skijable
     org.jetbrains.skija.Paint
-    (->skija [this] this))
+    (->skija-impl [this] this))
 
   (defn paint
     ([color]
@@ -134,25 +139,42 @@
   (def default-text-paint (paint palette-white))
   (def default-text-size 20)
 
-  (def font-name->resource-path
-    {"FiraCode Regular" "fonts/FiraCode-Regular.ttf"})
+  (defn make-with-size ^Font [^Typeface typeface size]
+    (Font. typeface (float size)))
 
-  (defgraphics Font [name size]
+  (defn make-skija-font [name size]
+    (when *dbg
+      (println (str "make-skija-font args: " name ", " size)))
+    (make-with-size (@sk/*font-cache name) size))
+
+  (defgraphics R-Font [name size]
     P-Skijable
-    (->skija [this] (org.jetbrains.skija.Font. (sk/memoized-load-typeface (font-name->resource-path name))
-                                               size)))
+    (->skija-impl [this]
+                  (make-skija-font name size))
+    Object
+    (toString [this]
+              (str "Font record: " (into {} this))))
+
+  (def default-font-name   "FiraCode Regular")
+
+  (defn font [name size]
+    (->R-Font name size))
 
   (defgraphics Text [text x y size paint font]
     ;; P-Skijable
     ;; (->skija [this] (Text.))
     P-Drawable
-    (draw [this] (draw this @timelines.globals/*main-canvas))
-    (draw [this canvas]
-          (.drawString canvas text
-                       (float x)
-                       (float y)
-                       (->skija (assoc font :size size))
-                       (->skija paint))))
+    (draw-impl [this]
+               (.drawString @*main-canvas
+                            text
+                            (float x)
+                            (float y)
+                            (->skija font)
+                            (->skija paint)))
+
+    Object
+    (toString [this]
+              (str "Text record: " (into {} this))))
 
   (defn text
     ([t x y]
@@ -162,16 +184,19 @@
     ([t x y s p]
      (text t x y s p nil))
     ([t x y s p f]
-     (->Text t x y s p f))))
+     (let [s (or s default-text-size)
+           p (or p default-text-paint)
+           f (or f (font default-font-name s))]
+       (->Text t x y s p f)))))
 
 ;; Misc protocols
 (do
 
   (extend-protocol P-Samplable
     org.jetbrains.skija.PaintMode
-    (sample-at [this _]
+    (sample-at-impl [this _]
       this)
 
     org.jetbrains.skija.Font
-    (sample-at [this _]
+    (sample-at-impl [this _]
       this)))

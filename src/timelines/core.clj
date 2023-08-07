@@ -72,7 +72,6 @@
       (.scale canvas scale-x scale-y)
       (reset! *main-canvas canvas)
       ;; Main loop
-      (println "made it here 1")
       (let [time-deltas (atom [])
             avg-fps (atom 0)]
         (loop []

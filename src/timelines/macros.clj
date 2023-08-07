@@ -121,10 +121,10 @@
                                      :impls (s/+ list?)))))
 
 (def default-samplable-impl
-  '(sample-at [this t]
-              (timelines.utils/map-record #(if % (sample-at % t)
-                                               nil)
-                                          this)))
+  '(sample-at-impl [this t]
+                   (timelines.utils/map-record #(if % (sample-at % t)
+                                                    nil)
+                                               this)))
 
 (defmacro defgraphics [& args]
   (let [{:keys [name params protocol-impls] :as conformed}

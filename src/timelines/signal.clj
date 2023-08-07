@@ -1,7 +1,7 @@
 (ns timelines.signal
   (:require [timelines.utils :as u]
             [timelines.protocols :refer [P-Samplable P-Bifunctor
-                                         sample-at postmap premap]]
+                                         sample-at-impl postmap premap sample-at]]
             [timelines.expr :as e]
             ;; [timelines.signal.api :refer :all]
             ;; [timelines.expr.core :as expr :refer :all]
@@ -41,7 +41,7 @@
   ;; TODO @robustness make sure the time arg is correct type
   ;; TODO @correctness the expr may actually be an fn of no arguments,
   ;; in which case it should be evalled and then called
-  (sample-at [this time]
+  (sample-at-impl [this time]
     (if const?
       (eval expr)
       ((eval expr) time)))
