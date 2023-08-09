@@ -147,22 +147,23 @@
     (sample-at-impl [this _] this)
 
     clojure.lang.PersistentList
-  ;; (sample-at-impl [this t]
-  ;;   ;; (eval)
-  ;;   ;; look at note re: into vs apply
-  ;;   (println "list sample-at-implh")
-  ;;   (into '()
-  ;;         (map #(sample-at-impl % t) this)))
+    ;; (sample-at-impl [this t]
+    ;;   ;; (eval)
+    ;;   ;; look at note re: into vs apply
+    ;;   (println "list sample-at-implh")
+    ;;   (into '()
+    ;;         (map #(sample-at-impl % t) this)))
     (sample-at-impl [this t]
       (fmap #(sample-at-impl % t) this))
-  ;; TODO @robustness is this correct? probably not
+
+    clojure.lang.LazySeq
+    (sample-at-impl [this t]
+      (map #(sample-at-impl % t) this))
 
     clojure.lang.PersistentVector
     (sample-at-impl [this t]
       (into []
-            (map #(sample-at-impl % t) this)))
-  ;; TODO @robustness is this correct?
-    ))
+            (map #(sample-at-impl % t) this)))))
 ;; SymbolicExpr
 #_(do
 
@@ -256,12 +257,17 @@
 (defn sample-at [x t]
   (when @*dbg
     (println (str "sample-at args: " x ", t")))
-  (if (satisfies? P-Samplable x)
-    (sample-at-impl x t)
-    (throw (Exception. (str "sample-at: " x)))))
+  (when x
+    (if (satisfies? P-Samplable x)
+      (sample-at-impl x t)
+      (throw (Exception. (str "sample-at: " x))))))
 
 (defn draw-at [obj t]
   (-> obj (sample-at t) draw))
 
 (defn draw-now [x]
   (draw-at x (t/now)))
+
+(defprotocol P-Dimensions
+  (->height [this])
+  (->width [this]))
