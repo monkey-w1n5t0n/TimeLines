@@ -3,6 +3,7 @@
             [timelines.utils :as u]
             [clojure.walk :refer [postwalk prewalk]]
             [clojure.spec.alpha :as s]
+            [timelines.time :as t]
             [timelines.debug :refer [*dbg]]
             [timelines.macros :as m]))
 
@@ -182,7 +183,8 @@
 (defn draw [x]
   (when @*dbg
     (println (str "draw arg: " x)))
-  (draw-impl x))
+  (if (satisfies? P-Drawable x)
+    (draw-impl x)))
 
 (extend-protocol P-Drawable
   clojure.lang.PersistentVector
@@ -251,10 +253,15 @@
     (fn [e]
       (f e (rf e)))))
 
-(defn draw-at [obj t]
-  (-> obj (sample-at-impl t) draw))
-
 (defn sample-at [x t]
   (when @*dbg
     (println (str "sample-at args: " x ", t")))
-  (sample-at-impl x t))
+  (if (satisfies? P-Samplable x)
+    (sample-at-impl x t)
+    (throw (Exception. (str "sample-at: " x)))))
+
+(defn draw-at [obj t]
+  (-> obj (sample-at t) draw))
+
+(defn draw-now [x]
+  (draw-at x (t/now)))

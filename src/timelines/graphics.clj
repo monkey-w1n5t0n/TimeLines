@@ -16,20 +16,30 @@
    [timelines.specs :as specs]
    [clojure.spec.alpha :as s]
    [timelines.globals :as globals]
-   [timelines.skija :as sk])
+   [timelines.skija :as sk]
+   [clojure.pprint :as pprint])
   (:import
    [org.jetbrains.skija Path Canvas PaintMode Typeface Font]))
 
 (sk/init)
 
+(defmacro with-translation [x y & block]
+  `(do (.save @*main-canvas)
+       (.translate @*main-canvas ~x ~y)
+       ~@block
+       (.restore @*main-canvas)))
+
 ;; Container
 (do
-  (defgraphics Container [x y contents]
+  (defgraphics Container [x y children]
     P-Drawable
     (draw-impl [this]
-               (doseq [x contents]
-                 (when x
-                   (draw x))))))
+               (with-translation x y
+                 (doseq [c children]
+                   (when c (draw c))))))
+
+  (defn container [x y & children]
+    (->Container x y children)))
 
 ;; Shapes
 (do
