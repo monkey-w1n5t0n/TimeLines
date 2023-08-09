@@ -1,3 +1,3 @@
 (ns timelines.debug)
 
-(defonce *dbg (atom true))
+(defonce *dbg (atom false))

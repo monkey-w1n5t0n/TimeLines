@@ -92,7 +92,10 @@
                     (.setColor (u/color (or color default-color)))
                     (.setStrokeWidth (or stroke-width default-stroke-width))
                     (.setMode (paint-style->skija (or style default-paint-style)))
-                    (.setAlphaf (or alpha 1.0)))))
+                    (.setAlphaf (or alpha 1.0))))
+    Object
+    (toString [this]
+              (str "Paint record: " (into {} this))))
 
   (s/def ::paint #(instance? Paint %))
 

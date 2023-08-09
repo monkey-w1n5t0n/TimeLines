@@ -42,9 +42,10 @@
   ;; TODO @correctness the expr may actually be an fn of no arguments,
   ;; in which case it should be evalled and then called
   (sample-at-impl [this time]
-    (if const?
-      (eval expr)
-      ((eval expr) time)))
+    ((eval expr) time)
+    #_(if const?
+        (eval expr)
+        ((eval expr) time)))
 
   ;; FUNCTION
   clojure.lang.IFn

@@ -3,12 +3,11 @@
    [nrepl.server :as nrepl]
    [timelines.globals :refer [*main-canvas screen-width screen-height]]
    ;; [timelines.editor :as editor]
-   [timelines.api-test :as api]
+   [timelines.editor :as editor]
    [timelines.keyboard :as key]
    [timelines.utils :refer [color]])
-
   (:import
-   [org.jetbrains.skija BackendRenderTarget Canvas ColorSpace DirectContext FramebufferFormat Paint Rect Surface SurfaceColorFormat SurfaceOrigin]
+   [org.jetbrains.skija BackendRenderTarget ColorSpace DirectContext FramebufferFormat Surface SurfaceColorFormat SurfaceOrigin]
    [org.lwjgl.glfw Callbacks GLFW GLFWErrorCallback GLFWKeyCallbackI]
    [org.lwjgl.opengl GL GL11]
    [org.lwjgl.system MemoryUtil]))
@@ -83,8 +82,8 @@
         ;; RENDER
               (.clear canvas (color 0xFFFFFFFF))
               (let [layer (.save canvas)]
-                (#'api/draw-screen)
-                (#'api/draw-fps @avg-fps)
+                (editor/draw-screen)
+                (editor/draw-fps @avg-fps)
                 (.restoreToCount canvas layer))
               (.flush context)
               (GLFW/glfwSwapBuffers window)
