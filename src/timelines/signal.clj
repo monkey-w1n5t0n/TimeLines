@@ -129,26 +129,6 @@
        (instance? Signal x)
        (not (:const? x))))
 
-(defn process-postmap-arg [arg new-time-arg-sym]
-  (cond
-    (var-sig? arg)
-    (let [expr (:expr arg)]
-      (e/sigfn->replace-time-arg expr new-time-arg-sym))
-
-    ;; TODO @correctness figure out what the difference between (const? ...) and (const-sig? ...) should be
-    (and (instance? Signal arg)
-         (:const? arg))
-    (:expr arg)
-
-    ;; TODO do this properly instead of separate cases for each type
-    (instance? clojure.lang.PersistentVector arg)
-    (into [] (map #(process-postmap-arg % new-time-arg-sym) arg))
-
-    (instance? clojure.lang.PersistentList arg)
-    (reverse (into '() (map #(process-postmap-arg % new-time-arg-sym) arg)))
-
-    :else arg))
-
 ;; TEST THIS
 ;;;;;;;;;;;;;;;
 
@@ -169,45 +149,36 @@
                             reverse)]
           (make-signal new-expr)))))
 
-(defn apply-postmap [op args]
-  (let [op (if (simple-symbol? op)
-             (ns-resolve *ns* op)
-             op)]
+#_(defn apply-postmap [op args]
+    (let [op (if (simple-symbol? op)
+               (ns-resolve *ns* op)
+               op)]
         ;; All const sigs
-    (if (u/all? const-sig? args)
-      (let [exprs (map ->expr args)]
-        (make-signal `(~op ~@exprs)))
+      (if (u/all? const-sig? args)
+        (let [exprs (map ->expr args)]
+          (make-signal `(~op ~@exprs)))
           ;; At least one variable sig
-      (let [time-arg 't
-            arg-exprs (mapv ->expr args)
-            processed-arg-exprs (mapv #(if (e/sigfn? %)
-                                         (list '-> time-arg (list %))
-                                         %)
-                                      arg-exprs)
+        (let [time-arg 't
+              arg-exprs (mapv ->expr args)
+              processed-arg-exprs (mapv #(if (e/sigfn? %)
+                                           (list '-> time-arg (list %))
+                                           %)
+                                        arg-exprs)
                 ;; TODO produce this as persistent list directly?
-            new-expr (list 'clojure.core/fn [time-arg]
-                           (cons op processed-arg-exprs))]
-        (make-signal new-expr)))))
+              new-expr (list 'clojure.core/fn [time-arg]
+                             (cons op processed-arg-exprs))]
+          (make-signal new-expr)))))
 
-(apply-postmap 'clojure.core/+ [(signal (fn [t] (+ 1 t)))
-                                (signal (fn [x] (/ x 2)))])
+(defn apply-postmap [op args]
+  (make-signal
+   (e/apply-postmap op (map ->expr args))))
 
 ;; TODO @correctness f should probably be applied to time even if the signal is constant
 ;; (while maintaining the :const? attribute)
 ;; so that, in the future, if we want to replace a signal's body but keep
 ;; all its time transformations we have the option to
 (defn apply-premap [f sig]
-  (if (const-sig? sig)
-    sig
-    (let [e-apply (list (->expr sig))
-          f-apply (cond
-                    (instance? Signal f) (list (:expr f))
-                    (e/sigfn? f) (list f)
-                    :else f)
-          time-arg 't
-          new-expr (list 'clojure.core/fn [time-arg]
-                         (list '-> time-arg f-apply e-apply))]
-      (make-signal new-expr))))
+  (make-signal (e/sigfn-premap (->expr sig) (->expr f))))
 
 ;; TODO figure out how to define this for varargs
 ;; (defrecord Postmap-Op [op-sym docstr]

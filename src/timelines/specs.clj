@@ -32,7 +32,7 @@
   (s/def :clojure/fn clojure.core/fn?)
 
   (s/def :clojure.expr/fn
-    (s/cat :fn   #{'fn 'clojure.core/fn}
+    (s/cat :fn   #{'fn 'fn* 'clojure.core/fn 'clojure.core/fn*}
            :args :clojure.expr.fn/arglist
            :body :clojure.expr.fn/body))
 

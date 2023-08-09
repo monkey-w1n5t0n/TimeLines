@@ -13,9 +13,10 @@
    [org.lwjgl.opengl GL GL11]
    [org.lwjgl.system MemoryUtil]))
 
+(def target-fps 60)
+
 ;; Misc preparations
-(do
-  (set! *warn-on-reflection* true))
+(set! *warn-on-reflection* true)
 
 ;; LWJGL functions
 (do
@@ -73,11 +74,13 @@
       (reset! *main-canvas canvas)
       ;; Main loop
       (let [time-deltas (atom [])
-            avg-fps (atom 0)]
+            avg-fps (atom 0)
+            target-ns-per-frame (/ 1e9 target-fps)]
         (loop []
           (when (not (GLFW/glfwWindowShouldClose window))
             (let [start-time (System/nanoTime)]
-              ;; RENDER
+
+        ;; RENDER
               (.clear canvas (color 0xFFFFFFFF))
               (let [layer (.save canvas)]
                 (#'api/draw-screen)
@@ -86,18 +89,27 @@
               (.flush context)
               (GLFW/glfwSwapBuffers window)
               (GLFW/glfwPollEvents)
-              ;; FPS
+
+        ;; FPS
               (swap! time-deltas conj (- (System/nanoTime) start-time))
 
-              ;; Keep only the last 100 time measurements to calculate FPS
+        ;; Keep only the last 100 time measurements to calculate FPS
               (when (> (count @time-deltas) 100)
                 (swap! time-deltas subvec 1))
 
-              ;; Calculate and print FPS every 100 frames
+        ;; Calculate FPS every 100 frames
               (when (zero? (mod (count @time-deltas) 100))
                 (let [avg-time (/ (reduce + @time-deltas) (count @time-deltas))
                       fps (/ 1e9 avg-time)]
                   (reset! avg-fps fps)))
+
+        ;; Calculate the time this frame took
+              (let [end-time (System/nanoTime)
+                    frame-duration (- end-time start-time)
+                    sleep-time (- target-ns-per-frame frame-duration)]
+                (when (> sleep-time 0)
+            ;; Convert nanoseconds to milliseconds for Thread/sleep
+                  (Thread/sleep (long (quot sleep-time 1e6)))))
 
               (recur)))))
 

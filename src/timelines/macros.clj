@@ -140,3 +140,7 @@
                            (concat ['P-Samplable default-samplable-impl] protocol-impls)
                            protocol-impls)]
       `(defrecord ~name ~params ~@protocol-impls))))
+
+(defmacro if-pf [v p f]
+  `(let [v# ~v]
+     (if (~p v#) (~f v#) v#)))

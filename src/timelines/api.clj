@@ -2,13 +2,13 @@
   (:require
    [timelines.base-api :as base]
    [timelines.signal :refer [make-signal var-sig? apply-premap apply-postmap]]
-   [timelines.expr :as expr]
+   [timelines.expr :as e]
    [timelines.utils :as util]
    [timelines.macros :refer [with-ns <- <<- <-as]] ;; ->
    [timelines.protocols :refer :all]
    [clojure.pprint :refer [pprint]]))
 
-(def t (make-signal '(fn [time_0] time_0)))
+(def t (make-signal e/id-sigfn))
 
 (defmacro ->map
   [args]
@@ -22,41 +22,27 @@
 ;; OPERATORS
 (do ;; TODO abstract this?
 ;;;; Premaps
-  (defn slow [amt sig]
-    (if (var-sig? amt)
-      ;; Signal amt
-      (let [sig-fn-expr (:expr amt)]
-        (apply-premap sig `(fn [time#] (clojure.core// time#
-                                                       (~sig-fn-expr time#)))))
-      ;; Static amt
-      (apply-premap sig `(fn [time#] (clojure.core// time# ~amt)))))
-
   (defn fast [amt sig]
-    (if (var-sig? amt)
-      (let [sig-fn-expr (:expr amt)]
-        (apply-premap sig `(fn [time#] (clojure.core/* time#
-                                                       (~sig-fn-expr time#)))))
-      (apply-premap sig `(fn [time#] (clojure.core/* ~amt time#)))))
-  ;;
+    (apply-premap `(clojure.core/* ~amt) sig))
 
-  ;; TODO
-  (def fns '[+ - * / mod])
+  (defn slow [amt sig]
+    (apply-premap `(clojure.core// ~amt) sig))
 
 ;;;; Postmaps
   (defn + [& args]
-    (apply-postmap {:sym '+ :source-ns 'clojure.core} args))
+    (apply-postmap 'clojure.core/+ args))
 
   (defn - [& args]
-    (apply-postmap {:sym '- :source-ns 'clojure.core} args))
+    (apply-postmap 'clojure.core/-  args))
 
   (defn * [& args]
-    (apply-postmap {:sym '* :source-ns 'clojure.core} args))
+    (apply-postmap 'clojure.core/*  args))
 
   (defn / [& args]
-    (apply-postmap {:sym '/ :source-ns 'clojure.core} args))
+    (apply-postmap 'clojure.core//  args))
 
   (defn mod [& args]
-    (apply-postmap {:sym 'mod :source-ns 'clojure.core} args))
+    (apply-postmap 'clojure.core/mod args))
 
   (def % mod)
 
@@ -71,23 +57,21 @@
     (Math/sin x))
 
   (defn sine [& args]
-    (apply-postmap {:sym 'sine-impl} args))
+    (apply-postmap 'Math/sin args))
 
   (def sin sine)
 
   (defn nth [& args]
-    (apply-postmap {:sym 'nth :source-ns 'clojure.core} args))
+    (apply-postmap 'clojure.core/nth args))
 
   (defn from-list [& args]
-    (apply-postmap {:sym 'from-list
-                    :source-ns 'timelines.base-api}
-                   args))
+    (apply-postmap 'timelines.base-api/from-list args))
 
   (defn str [& args]
-    (apply-postmap {:sym 'str :source-ns 'clojure.core} args))
+    (apply-postmap 'clojure.core/str args))
 
   (defn int [& args]
-    (apply-postmap {:sym 'int :source-ns 'clojure.core} args)))
+    (apply-postmap 'clojure.core/int args)))
 
 ;; convenience arithmetic
 (do

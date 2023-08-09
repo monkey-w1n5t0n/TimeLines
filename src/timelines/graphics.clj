@@ -109,7 +109,7 @@
     ([color style stroke-width]
      (map->Paint {:color color :style style :stroke-width stroke-width})))
 
-  (defn apply-paint [paint obj]
+  (defn apply-paint [obj paint]
     (assoc obj :paint paint))
 
   #_(defn paint
@@ -143,7 +143,7 @@
     (Font. typeface (float size)))
 
   (defn make-skija-font [name size]
-    (when *dbg
+    (when @*dbg
       (println (str "make-skija-font args: " name ", " size)))
     (make-with-size (@sk/*font-cache name) size))
 

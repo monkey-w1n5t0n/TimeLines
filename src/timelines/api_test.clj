@@ -141,10 +141,15 @@
   #_(def scene [window
                 modeline]))
 
-(def scene [(rect 10 50 (+ 100 (* 100 (sine t))) 200)])
+(slow 2  (+ 1 t))
+
+(def scene [(rect (half screen-width)
+                  (half screen-height)
+                  (+ 88 (* 50 (sine t))) 20)])
 
 (def broken-scene
   [(-> (rect 0 0 screen-width screen-height)
+       (apply-paint (paint palette-red))
        #_(apply-paint (paint red)))
    #_(let [color (from-list [black blue
                              (from-list [black white black white] (fast 2 beat))

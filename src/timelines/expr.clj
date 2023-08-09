@@ -1,23 +1,23 @@
 (ns timelines.expr
   (:require
-   [timelines.protocols :as p]    ;
+   [timelines.protocols :as p]          ;
    [timelines.utils :as u]
    [clojure.spec.alpha :as s]
-   [timelines.specs :as ts]))
+   [timelines.macros :as m]
+   [timelines.specs :as ts]
+   [clojure.string :as str]))
 
 ;; TODO should implement both premap and postmap under bimap
 ;; increment time arg every time something is bimapped
 
-(declare symbolic-apply-direct
-         symbolic-apply-indirect
-         symbolic-apply-direct-or-indirect
-         symbolic-higher-order-apply-to-input
-         symbolic-higher-order-apply-to-output)
+(def init-time-arg 't_0)
+
+(def id-sigfn (list 'clojure.core/fn [init-time-arg] init-time-arg))
+
+(defn fn? [e] (s/valid? :clojure.expr/fn e))
 
 (defn parse-fn [e]
   (s/conform :clojure.expr/fn e))
-
-(defn fn? [e] (s/valid? :clojure.expr/fn e))
 
 (defn fn-args [e]
   (->> e parse-fn :args))
@@ -25,8 +25,8 @@
 (defn fn-return-e [e]
   (->> e parse-fn :body last))
 
-(defn fn-body [e]
-  (->> e (s/conform :clojure.expr/fn) :body))
+(defn fn-bodies [e]
+  (->> e parse-fn :body))
 
 ;; (->clojure-fn {:args '[x y] :body ['(+ x y)]})
 
@@ -44,40 +44,58 @@
 (defn time-arg [e]
   (-> e parse-sigfn :args first))
 
-(defn sigfn->replace-time-arg [sigfn new-time-arg-sym]
-  (let [old-time-arg (time-arg sigfn)
-        old-body (nth sigfn 2)]
-    (u/replace-sym old-body old-time-arg new-time-arg-sym)))
-
-;; (defn postmap [post-f f]
-;;   (update-body f ()))
+(defn const? [e]
+  (or (not (sigfn? e))
+      (u/not-in? (flatten (fn-bodies e))
+                 (time-arg e))))
 
 (defn apply' [f x]
   (f x))
 
+(defn incr-time-arg [e]
+  (let [[arg-base num] (-> e time-arg name (str/split #"_"))
+        new-num (if-not num "1"
+                        (-> num Integer/parseInt inc str))]
+    (-> arg-base (str "_" new-num) symbol)))
+
+(defn coerce-sigfn [e]
+  (if (sigfn? e)
+    e
+    (list 'clojure.core/fn [init-time-arg] e)))
+
+(defn coerce-thread-fn [e]
+  (m/if-pf e fn? list))
+
+;; FIXME
+;; Should be equivalent to premap when post is nil, and vice versa
+(defn sigfn-bimap [e pre post]
+  (let [e (coerce-sigfn e)
+        [pre post] (map coerce-thread-fn [pre post])
+        new-t (incr-time-arg e)]
+    `(fn [~new-t] ~(filter some? `(-> ~new-t
+                                      ~pre
+                                      (~e)
+                                      ~post)))))
+
 ;; TODO @properness these are just the same with the only thing different being the
 ;; order of whether the time arg gets put through e or f first, before being put through the other
 (defn sigfn-premap [e f]
-  (let [time-arg (-> e second first)
-        f-is-fn? (some (set '[fn clojure.core/fn])
-                       (list (first f)))
-        f (if f-is-fn? (list f) f)
-        e (list e)
-        new-body (list '-> time-arg f e)
-        new-expr (list 'fn [time-arg] new-body)]
-    new-expr))
+  (sigfn-bimap e f nil))
 
 (defn sigfn-postmap [e f]
-  (let [time-arg (-> e second first)
-        f-is-fn? (some (set '[fn clojure.core/fn])
-                       (list (first f)))
-        f (if f-is-fn? (list f) f)
-        e (list e)
-        new-body (list '-> time-arg e f)
-        new-expr (list 'fn [time-arg] new-body)]
-    new-expr))
+  (sigfn-bimap e nil f))
 
-(defn const? [e]
-  (or (not (sigfn? e))
-      (u/not-in? (flatten (fn-body e))
-                 (time-arg e))))
+(defn thread-first-arg [e t]
+  `(-> ~t ~(coerce-thread-fn e)))
+
+(defn apply-postmap [op fs]
+  (let [new-t init-time-arg
+        process-f (fn [e] (m/if-pf e sigfn? #(thread-first-arg % new-t)))
+        args (map process-f fs)]
+    `(fn [~new-t] (~op ~@args))))
+
+(comment
+
+  + 1 (+ 1 2) (fn [t] t)
+
+  (fn [t] (+ 1 (+ 1 2) (-> t ((fn [t] t))))))
