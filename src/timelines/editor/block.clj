@@ -12,6 +12,15 @@
 
 ;; Specs
 (do
+  (s/def ::frawable any?)
+  (s/def ::atom (s/or :t #(= % 't)
+                      :sym symbol?
+                      :map map?
+                      :str string?
+                      :num number?
+                      :keyword keyword?))
+;; Specs
+(do
   (s/def ::drawable any?)
   (s/def ::atom (s/or :t #(= % 't)
                       :sym symbol?
