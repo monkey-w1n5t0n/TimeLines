@@ -1,4 +1,5 @@
 (ns timelines.keyboard
+  (:require [timelines.rules :as r])
   (:import
    [org.lwjgl.glfw Callbacks GLFW GLFWErrorCallback GLFWKeyCallbackI]))
 
@@ -42,10 +43,4 @@
 (def keymap (apply hash-map (flatten (map vector keycodes dvorak))))
 
 (defn handle-event [key action]
-  (let [key key
-        ;; action ([:up :down :else] action) TODO there's more than this
-        ]
-    (when (= action 0)
-      (do (flush)
-          (print "(" key " " (keymap key) ") ")
-          (flush)))))
+  (#'r/handle-key-event (keymap key) action))
