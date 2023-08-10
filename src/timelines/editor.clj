@@ -81,10 +81,7 @@
 (defonce *stacktrace-printed? (atom false))
 
 (defn draw-fps [n]
-  (draw-now (text (str "FPS: " (int n))
-                  3
-                  (- screen-height 3)
-                  (font 20))))
+  (draw-now (text (str "FPS: " (int n)) 3 (- screen-height 3) (font 20))))
 
 (defn draw-screen []
   (try

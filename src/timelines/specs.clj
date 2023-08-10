@@ -11,8 +11,8 @@
   (s/def :clojure/map map?)
   (s/def :clojure/symbol symbol?)
 
-  (s/def :clojure.expr.fn-call/arg any?)
-  (s/def :clojure.expr.fn-call/args (s/* :clojure/arg))
+  (s/def :clojure.expr.fn-call/arg (s/or :map map? :vec vector? :sym symbol? :num number?))
+  (s/def :clojure.expr.fn-call/args (s/* :clojure.expr.fn-call/arg))
   ;; What you'd expect to see in (fn <here> ...)
   (s/def :clojure.expr.fn/arglist (s/and vector?
                                          (s/coll-of simple-symbol? :distinct true :into [])))
@@ -57,7 +57,7 @@ or anything that can be evaluated to one."}
     ^{:doc "Anything that can be considered a valid function call, including things like maps or vectors."}
     (s/and list?
            (s/cat :fn :clojure.expr/callable
-                  :args :clojure/args))))
+                  :args :clojure.expr.fn-call/args))))
 
 (comment
 

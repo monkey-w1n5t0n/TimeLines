@@ -52,7 +52,7 @@
                (+ padding-x (apply max (map #(+ (:x) (->width %)) children)))))
 
   (defn container [x y & children]
-    (->Container x y children)))
+    (->Container x y (into [] children))))
 
 ;; Shapes
 (do
@@ -216,7 +216,10 @@
 
     P-Dimensions
     (->height [this] (->height font))
-    (->width [this] (.measureText (->skija font) text))
+    (->width [this] (let [bounding-box  (.measureText (->skija font) text)
+                          left (._left bounding-box)
+                          right (._right bounding-box)]
+                      (- right left)))
 
     Object
     (toString [this]

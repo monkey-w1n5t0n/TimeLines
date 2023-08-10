@@ -3,6 +3,7 @@
 (def white 0xFFFFFFFF)
 (def black 0xFF000000)
 (def blue  0xFF0000ff)
+(def green  0xFF00ff00)
 (def grey  0xFF333333)
 (def red   0xFFFF0000)
 
