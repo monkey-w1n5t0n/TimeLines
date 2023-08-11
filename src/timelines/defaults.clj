@@ -1,8 +1,6 @@
 (ns timelines.defaults
   (:require [timelines.colors :refer :all]
-            [timelines.utils :as u])
-  (:import
-   [org.jetbrains.skija Paint PaintMode]))
+            [timelines.utils :as u]))
 
 (def default-color palette-white)
 (def default-stroke-width 1)

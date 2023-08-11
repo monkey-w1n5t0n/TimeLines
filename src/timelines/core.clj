@@ -2,12 +2,12 @@
   (:require
    [nrepl.server :as nrepl]
    [timelines.globals :refer [*main-canvas screen-width screen-height]]
-   ;; [timelines.editor :as editor]
-   [timelines.editor :as editor]
+   [timelines.draw :as draw]
    [timelines.keyboard :as key]
-   [timelines.utils :refer [color]])
+   [timelines.utils :as u])
   (:import
-   [org.jetbrains.skija BackendRenderTarget ColorSpace DirectContext FramebufferFormat Surface SurfaceColorFormat SurfaceOrigin]
+   [io.github.humbleui.skija BackendRenderTarget Canvas ColorSpace DirectContext FramebufferFormat Paint Surface SurfaceColorFormat SurfaceOrigin]
+   [io.github.humbleui.types Rect]
    [org.lwjgl.glfw Callbacks GLFW GLFWErrorCallback GLFWKeyCallbackI]
    [org.lwjgl.opengl GL GL11]
    [org.lwjgl.system MemoryUtil]))
@@ -80,10 +80,9 @@
             (let [start-time (System/nanoTime)]
 
         ;; RENDER
-              (.clear canvas (color 0xFFFFFFFF))
+              (.clear canvas (u/color 0xFFFFFFFF))
               (let [layer (.save canvas)]
-                (editor/draw-screen)
-                (editor/draw-fps @avg-fps)
+                (draw/draw canvas)
                 (.restoreToCount canvas layer))
               (.flush context)
               (GLFW/glfwSwapBuffers window)
@@ -125,6 +124,3 @@
       (GLFW/glfwTerminate)
       (.free (GLFW/glfwSetErrorCallback nil))
       (shutdown-agents))))
-
-(comment
-  (-main))

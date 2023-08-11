@@ -1,43 +1,33 @@
 (ns timelines.draw
-  (:import
-   [org.jetbrains.skija
-    BackendRenderTarget Canvas ColorSpace
-    DirectContext FramebufferFormat Paint
-    Rect Surface SurfaceColorFormat SurfaceOrigin]))
+  (:require [timelines.utils :as u]
+            [timelines.api :refer :all])
+  #_(:import
+     [io.github.humbleui.skija Paint]
+     [io.github.humbleui.types Rect RRect]))
 
-;; ;; GENERIC
-;; (defn node-type [node]
-;;   (:type node))
+;; (defn draw []
+;;   (.drawRect  (Rect/makeXYWH 200 300 400 400) (doto (Paint.) (.setColor (u/color 0xFFF04FFF)))))
 
-;; (defn render-node-dispatch-fn [n]
-;;   (node-type n))
+#_(defn make-xywh
+    ([x y w h] (make-xywh x y w h nil))
+    ([x y w h r]
+     (if r
+       (RRect/makeXYWH x y w h r)
+       (Rect/makeXYWH x y w h))))
 
-;; (defmulti render-node render-node-dispatch-fn)
+(defrecord TestRecord [x y w h])
 
-;; (defn xywh [n]
-;;   (map #(n %1) [:x :y :w :h]))
+(def a (->TestRecord (+ 1 t) 3 "hello" :bob))
 
-;; (defn expand-rect [n]
-;;   {})
+(defn update-values [m f]
+  (let [transient-m (transient m)]
+    (reduce (fn [acc [k v]]
+              (assoc! acc k (f v)))
+            transient-m
+            m)
+    (persistent! transient-m)))
 
-;; (defn contains-all? [m ks]
-;;   (every? (partial contains? m) ks))
+(defn sample [x t]
+  (update-values x #(clojure.core/+ % t)))
 
-;; (defn valid-rect? [n]
-;;   (and (contains-all? n [:x :y])
-;;        (or (contains-all? n [:w :h])
-;;            (contains-all? n [:x-end :y-end]))))
-
-;; (defn rect-radius [n]
-;;   (or (n :radius) 0))
-
-;; (defn render-rect [n]
-;;   (assert (valid-rect? n))
-;;   (let [expanded-n (expand-rect n)
-;;         [x y w h] (xywh n)
-;;         r (rect-radius n)]
-;;     (q/rect x y w h r)))
-
-;; (defn draw [tree]
-;;   ())
-;;
+(sample a 5)

@@ -227,13 +227,6 @@
       (let [sampled (mapv #(sample-at-impl % t) this)]
         [(min sampled) (max sampled)]))))
 
-(defprotocol P-Skijable
-  (->skija-impl [this]))
-
-(defn ->skija [x]
-  (when @*dbg
-    (println (str "->skija arg: " x)))
-  (->skija-impl x))
 ;; Unused
 (do
   (deftype reader-f [v rf f]
@@ -275,3 +268,11 @@
   (set-height [this])
   (set-width [this])
   (set-bounds [this]))
+
+(defprotocol P-Coords
+  (get-xywh [this])
+  (set-xywh [this])
+  (get-trbl [this])
+  (set-trbl [this])
+  (get-center [this])
+  (set-center [this]))
