@@ -24,12 +24,6 @@
 
 (sk/init)
 
-(defmacro with-translation [x y & block]
-  `(do (.save @*main-canvas)
-       (.translate @*main-canvas ~x ~y)
-       ~@block
-       (.restore @*main-canvas)))
-
 ;; Container
 ;; TODO
 (do
@@ -246,3 +240,6 @@
     org.jetbrains.skija.Font
     (sample-at-impl [this _]
       this)))
+
+(comment
+  (-> (rect 0 0 10 20) (assoc :children [(rect 1 2 3 4) (rect 500 400 30 20)])))

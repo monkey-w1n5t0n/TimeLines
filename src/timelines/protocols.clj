@@ -181,11 +181,18 @@
   "Draw a static object"
   (draw-impl [this] [this canvas]))
 
-(defn draw [x]
-  (when @*dbg
-    (println (str "draw arg: " x)))
-  (if (satisfies? P-Drawable x)
-    (draw-impl x)))
+(defn draw [{:keys [x y children] :as obj}]
+  #_(when @*dbg
+      (println (str "draw arg: " x)))
+  (if-not (satisfies? P-Drawable obj)
+    (throw (Exception. (str "Not drawable: " obj)))
+    (do
+      ;; TODO @feature the order of these should probably be determinable by the object
+      ;; e.g. [:self :children] or [:children :bounds :self]
+      (draw-impl obj)
+      (when children
+        (draw/with-translate x y
+          (doseq [x children] (draw x)))))))
 
 (extend-protocol P-Drawable
   clojure.lang.PersistentVector
@@ -225,7 +232,7 @@
     (range [this] [(min this) (max this)])
     (range-at [this t]
       (let [sampled (mapv #(sample-at-impl % t) this)]
-        [(min sampled) (max sampled)]))))
+        [(apply min sampled) (apply max sampled)]))))
 
 (defprotocol P-Skijable
   (->skija-impl [this]))
@@ -234,6 +241,25 @@
   (when @*dbg
     (println (str "->skija arg: " x)))
   (->skija-impl x))
+
+(defn sample-at [x t]
+  (when @*dbg
+    (println (str "sample-at args: " x ", t")))
+  (when x
+    (if (satisfies? P-Samplable x)
+      (sample-at-impl x t)
+      (throw (Exception. (str "sample-at: " x))))))
+
+(defn draw-at [obj t]
+  (-> obj (sample-at t) draw))
+
+(defn draw-now [x]
+  (draw-at x (t/now)))
+
+(defprotocol P-Dimensions
+  (->height [this])
+  (->width [this]))
+
 ;; Unused
 (do
   (deftype reader-f [v rf f]
@@ -253,21 +279,3 @@
   (defn read-e [rf f]
     (fn [e]
       (f e (rf e)))))
-
-(defn sample-at [x t]
-  (when @*dbg
-    (println (str "sample-at args: " x ", t")))
-  (when x
-    (if (satisfies? P-Samplable x)
-      (sample-at-impl x t)
-      (throw (Exception. (str "sample-at: " x))))))
-
-(defn draw-at [obj t]
-  (-> obj (sample-at t) draw))
-
-(defn draw-now [x]
-  (draw-at x (t/now)))
-
-(defprotocol P-Dimensions
-  (->height [this])
-  (->width [this]))

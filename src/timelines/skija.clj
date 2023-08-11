@@ -1,5 +1,6 @@
 (ns timelines.skija
-  (:require [clojure.java.io :as io])
+  (:require [clojure.java.io :as io]
+            [timelines.globals :refer [*main-canvas]])
   (:import
    [org.jetbrains.skija
     ;; BackendRenderTarget
@@ -40,3 +41,9 @@
 
 (defn init []
   (load-fonts))
+
+(defmacro with-translate [x y & block]
+  `(do (.save @*main-canvas)
+       (.translate @*main-canvas ~x ~y)
+       ~@block
+       (.restore @*main-canvas)))
