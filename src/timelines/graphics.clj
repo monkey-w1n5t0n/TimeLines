@@ -45,11 +45,11 @@
           (when c (draw c)))))
 
     P-Dimensions
-    #_(->height [this]
-                (+ padding-y (apply + (map ->height children))))
+    #_(get-height [this]
+                  (+ padding-y (apply + (map get-height children))))
 
-    #_(->width [this]
-               (+ padding-x (apply max (map #(+ (:x) (->width %)) children)))))
+    #_(get-width [this]
+                 (+ padding-x (apply max (map #(+ (:x) (get-width %)) children)))))
 
   (defn container [x y & children]
     (->Container x y (into [] children))))
@@ -78,8 +78,8 @@
           (.drawRect @*main-canvas rect paint))))
 
     P-Dimensions
-    (->height [this] h)
-    (->width [this] w))
+    (get-height [this] h)
+    (get-width [this] w))
 
   (defn rect
     ([x y w h]
@@ -110,8 +110,8 @@
         (.drawOval @*main-canvas oval paint)))
 
     P-Dimensions
-    (->height [this] h)
-    (->width [this] w)))
+    (get-height [this] h)
+    (get-width [this] w)))
 
 ;; Paints
 (do
@@ -187,7 +187,7 @@
 
     P-Dimensions
     ;; TODO @correctness verify this
-    (->height [this] size))
+    (get-height [this] size))
 
   (def default-font-name "FiraCode Regular")
   (def default-font-size 20)
@@ -215,11 +215,11 @@
                    (->skija paint)))
 
     P-Dimensions
-    (->height [this] (->height font))
-    (->width [this] (let [bounding-box  (.measureText (->skija font) text)
-                          left (._left bounding-box)
-                          right (._right bounding-box)]
-                      (- right left)))
+    (get-height [this] (get-height font))
+    (get-width [this] (let [bounding-box  (.measureText (->skija font) text)
+                            left (._left bounding-box)
+                            right (._right bounding-box)]
+                        (- right left)))
 
     Object
     (toString [this]

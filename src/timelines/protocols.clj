@@ -269,5 +269,9 @@
   (draw-at x (t/now)))
 
 (defprotocol P-Dimensions
-  (->height [this])
-  (->width [this]))
+  (get-height [this])
+  (get-width [this])
+  (get-bounds [this])
+  (set-height [this])
+  (set-width [this])
+  (set-bounds [this]))
