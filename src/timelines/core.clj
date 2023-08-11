@@ -2,8 +2,8 @@
   (:require
    [nrepl.server :as nrepl]
    [timelines.globals :refer [*main-canvas screen-width screen-height]]
-   [timelines.draw :as draw]
    [timelines.keyboard :as key]
+   [timelines.editor :as editor]
    [timelines.utils :as u])
   (:import
    [io.github.humbleui.skija BackendRenderTarget Canvas ColorSpace DirectContext FramebufferFormat Paint Surface SurfaceColorFormat SurfaceOrigin]
@@ -78,11 +78,11 @@
         (loop []
           (when (not (GLFW/glfwWindowShouldClose window))
             (let [start-time (System/nanoTime)]
-
         ;; RENDER
               (.clear canvas (u/color 0xFFFFFFFF))
               (let [layer (.save canvas)]
-                (draw/draw canvas)
+                (#'editor/draw-screen)
+                (#'editor/draw-fps @avg-fps)
                 (.restoreToCount canvas layer))
               (.flush context)
               (GLFW/glfwSwapBuffers window)

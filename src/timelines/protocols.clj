@@ -276,3 +276,16 @@
   (set-trbl [this])
   (get-center [this])
   (set-center [this]))
+
+(defprotocol P-Skijable
+  (->skija-impl [this]))
+
+(defn ->skija [x]
+  (when @*dbg
+    (println (str "->skija arg: " x)))
+  (when (satisfies? P-Skijable x)
+    (->skija-impl x)))
+
+(defprotocol P-Dimensions
+  (->height [this])
+  (->width [this]))
