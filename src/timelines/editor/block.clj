@@ -12,7 +12,7 @@
 
 ;; Specs
 (do
-  (s/def ::frawable any?)
+  (s/def ::drawable any?)
   (s/def ::atom (s/or :t #(= % 't)
                       :sym symbol?
                       :map map?
