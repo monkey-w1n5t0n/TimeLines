@@ -24,94 +24,13 @@
 
 (sk/init)
 
+(declare paint)
+
 (defmacro with-translation [x y & block]
   `(do (.save @*main-canvas)
        (.translate @*main-canvas ~x ~y)
        ~@block
        (.restore @*main-canvas)))
-
-;; Container
-;; TODO
-(do
-  (defrecord Container [x y children]
-    P-Samplable
-    (sample-at-impl [this t]
-      (u/map-record #(sample-at % t) this))
-
-    P-Drawable
-    (draw-impl [this]
-      (with-translation x y
-        (doseq [c children]
-          (when c (draw c)))))
-
-    P-Dimensions
-    #_(->height [this]
-                (+ padding-y (apply + (map ->height children))))
-
-    #_(->width [this]
-               (+ padding-x (apply max (map #(+ (:x) (->width %)) children)))))
-
-  (defn container [x y & children]
-    (->Container x y (into [] children))))
-
-;; Shapes
-(do
-  ;; Rect
-  (defrecord Rect [x y w h r]
-    P-Samplable
-    (sample-at-impl [this t]
-      (u/map-record #(sample-at % t) this))
-
-    P-Skijable
-    (->skija-impl [this]
-      (if (and r (> r 0))
-        (org.jetbrains.skija.RRect/makeXYWH x y w h r)
-        (org.jetbrains.skija.Rect/makeXYWH x y w h)))
-
-    P-Drawable
-    #_(draw-impl [this] (draw this @timelines.globals/*main-canvas))
-    (draw-impl [{:keys [r paint] :as this}]
-      (let [rect (->skija this)
-            paint (->skija  (or paint default-paint))]
-        (if (and r (> r 0))
-          (.drawRRect @*main-canvas rect paint)
-          (.drawRect @*main-canvas rect paint))))
-
-    P-Dimensions
-    (->height [this] h)
-    (->width [this] w))
-
-  (defn rect
-    ([x y w h]
-     (map->Rect {:x x :y y :w w :h h}))
-    ([x y w h r]
-     (map->Rect {:x x :y y :w w :h h :r r})))
-
-  (defn radius [obj r]
-    (assoc obj :r r))
-
-  (comment
-    (def test-rect (rect 50 50 80 60)))
-
-  ;; Oval
-  (defrecord Oval [x y w h]
-    P-Samplable
-    (sample-at-impl [this t]
-      (u/map-record #(sample-at % t) this))
-
-    P-Skijable
-    (->skija-impl
-      [this] (org.jetbrains.skija.Rect/makeXYWH x y w h))
-
-    P-Drawable
-    (draw-impl [{:keys [paint] :as oval}]
-      (let [oval (->skija oval)
-            paint (->skija paint)]
-        (.drawOval @*main-canvas oval paint)))
-
-    P-Dimensions
-    (->height [this] h)
-    (->width [this] w)))
 
 ;; Paints
 (do
@@ -156,8 +75,96 @@
     ([color style stroke-width]
      (map->Paint {:color color :style style :stroke-width stroke-width})))
 
+  (def default-paint (paint black))
+
   (defn apply-paint [obj paint]
     (assoc obj :paint paint)))
+
+;; Container
+(do
+  (defrecord Container [x y children]
+    P-Samplable
+    (sample-at-impl [this t]
+      (u/map-record #(sample-at % t) this))
+
+    P-Drawable
+    (draw-impl [this]
+      (with-translation x y
+        (doseq [c children]
+          (when c (draw c)))))
+
+    P-Dimensions
+    ;; TODO
+    (->bounds [this] nil)
+    #_(->height [this]
+                (+ padding-y (apply + (map ->height children))))
+
+    #_(->width [this]
+               (+ padding-x (apply max (map #(+ (:x) (->width %)) children)))))
+
+  (defn container
+    ([x y children]
+     (->Container x y (into [] children)))))
+
+;; Shapes
+(do
+  ;; Rect
+  (defrecord Rect [x y w h r]
+    P-Samplable
+    (sample-at-impl [this t]
+      (u/map-record #(sample-at % t) this))
+
+    P-Skijable
+    (->skija-impl [this]
+      (if (and r (> r 0))
+        (org.jetbrains.skija.RRect/makeXYWH x y w h r)
+        (org.jetbrains.skija.Rect/makeXYWH x y w h)))
+
+    P-Drawable
+    #_(draw-impl [this] (draw this @timelines.globals/*main-canvas))
+    (draw-impl [{:keys [r paint] :as this}]
+      (let [rect (->skija this)
+            paint (->skija  (or paint default-paint))]
+        (if (and r (> r 0))
+          (.drawRRect @*main-canvas rect paint)
+          (.drawRect @*main-canvas rect paint))))
+
+    P-Dimensions
+    (->height [this] h)
+    (->width [this] w)
+    (->bounds [this] (->skija this)))
+
+  (defn rect
+    ([x y w h]
+     (map->Rect {:x x :y y :w w :h h}))
+    ([x y w h r]
+     (map->Rect {:x x :y y :w w :h h :r r})))
+
+  (defn radius [obj r]
+    (assoc obj :r r))
+
+  (comment
+    (def test-rect (rect 50 50 80 60)))
+
+  ;; Oval
+  (defrecord Oval [x y w h]
+    P-Samplable
+    (sample-at-impl [this t]
+      (u/map-record #(sample-at % t) this))
+
+    P-Skijable
+    (->skija-impl
+      [this] (org.jetbrains.skija.Rect/makeXYWH x y w h))
+
+    P-Drawable
+    (draw-impl [{:keys [paint] :as oval}]
+      (let [oval (->skija oval)
+            paint (->skija paint)]
+        (.drawOval @*main-canvas oval paint)))
+
+    P-Dimensions
+    (->height [this] h)
+    (->width [this] w)))
 
 ;; Text
 (do
@@ -187,7 +194,7 @@
 
     P-Dimensions
     ;; TODO @correctness verify this
-    (->height [this] size))
+    )
 
   (def default-font-name "FiraCode Regular")
   (def default-font-size 20)
@@ -215,11 +222,16 @@
                    (->skija paint)))
 
     P-Dimensions
-    (->height [this] (->height font))
-    (->width [this] (let [bounding-box  (.measureText (->skija font) text)
-                          left (._left bounding-box)
-                          right (._right bounding-box)]
-                      (- right left)))
+    #_(->height [this] (let [bounding-box  (.measureText (->skija font) text)
+                             top (._top bounding-box)
+                             bottom (._bottom bounding-box)]
+                         (Math/abs (-  bottom top))))
+    #_(->width [this] (let [bounding-box  (.measureText (->skija font) text)
+                            left (._left bounding-box)
+                            right (._right bounding-box)]
+                        (- right left)))
+    (->bounds [this]
+      (-> font ->skija (.measureText text (->skija paint))))
 
     Object
     (toString [this]
@@ -249,3 +261,13 @@
     org.jetbrains.skija.Font
     (sample-at-impl [this _]
       this)))
+
+(comment
+  (->height (text "H" 0 0))
+
+  (-> (rect 30 40 10 20) ->bounds .center)
+
+  (-> (text "hi" 500 30) ->bounds .getTop)
+
+  ;;
+  )
