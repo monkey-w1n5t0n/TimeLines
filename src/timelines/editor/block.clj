@@ -12,7 +12,7 @@
 
 ;; Specs
 (do
-  (s/def ::frawable any?)
+  (s/def ::drawable any?)
   (s/def ::atom (s/or :t #(= % 't)
                       :sym symbol?
                       :map map?
@@ -36,15 +36,19 @@
                  :vec ::vector
                  :fn-call ::fn-call)))
 
+(def font-base-size 20)
+
 (def *type-fonts
-  (atom {:f (font 28)
+  ;; TODO @flexibility this should support signal font sizes too, but it errors out
+  (atom {:f (font (clojure.core/+ font-base-size 4))
          :arg (font 23)
-         :t (font 29)}))
+         :t (font (clojure.core/+ font-base-size 3))}))
 
 (def *type-paints
   (atom {:f (paint red)
          :str (paint green)
          :sym (paint blue)
+         :arg (paint black)
          :t (paint white)}))
 
 (defn type-font [x]
@@ -52,6 +56,20 @@
 
 (defn type-paint [x]
   (get @*type-paints x default-paint))
+
+(do
+  (def arg-whitespace-width
+    (->
+     (width (text "a" 0 0 (type-font :arg) (type-paint :arg)))
+     (* 0.9)))
+
+  (def f-height (height (text "A" 0 0 (type-font :f) (type-paint :f))))
+  (def arg-height (height (text "A" 0 0 (type-font :arg) (type-paint :arg))))
+
+  (def arg-y-offset 0 #_(- (- f-height arg-height)))
+  (def fn-args-spacing 15)
+  ;;
+  )
 
 (defn ->tree
   "Attempt to parse a data structure to a valid tree"
@@ -66,7 +84,7 @@
 ;;   :args ::atom
 ;;   :ret ::drawable)
 
-(declare tree->drawables)
+(declare node->drawable)
 ;; Atoms
 (defn atom->drawable [[type x]]
   (let [font (type-font type)
@@ -74,41 +92,62 @@
         string (pr-str x)]
     (text string 0 0 font paint)))
 
-(def fn-args-spacing 10)
+(declare ->drawable)
 
 ;; Compound types
 (defn fn-call->drawable [{:keys [f args] :as e}]
-  (let [f (tree->drawables f)
+  (let [f (-> (node->drawable f)
+              (assoc :font (type-font :f)
+                     :paint (type-paint :f)))
         ;; TODO @performance this should probably be clojure.core/+ instead
         ;; but leaving it as a sig for now to see how it performs
-        args-x-offset (+ (->width f)
+        args-x-offset (+ (width f)
                          fn-args-spacing)
-        args (-> (tree->drawables args)
-                 (update :x + args-x-offset))]
-    (container 0 0 f args)))
+        args (->drawable args)
+        ;; Offset args
+        args (container (+ arg-whitespace-width
+                           args-x-offset)
+                        arg-y-offset
+                        (loop [acc []
+                               offset 0
+                               args args]
+                          (if (empty? args)
+                            acc
+                            (let [arg (first args)]
+                              (recur (conj acc (update arg :x + offset))
+                                     (+ offset (width arg) arg-whitespace-width)
+                                     (rest args))))))
+        width 150
+        height 30
+        background (-> (rect 0 -20 width height)
+                       (apply-paint (paint palette-white)))]
+    (container 0 0 [background f args])))
 
-(declare ->drawables)
-
-(defn tree->drawables [[type body]]
+(defn node->drawable [[type body]]
   (case type
     :atom (atom->drawable body)
     :fn-call (fn-call->drawable body)
-    :vec (->drawables body)
+    :vec (->drawable body)
     :quoted-list nil
     nil))
 
-(defn ->drawables [e]
-  (if (-> e first keyword?)
-    (tree->drawables e)
-    (mapv ->drawables e)))
+(defn ->drawable [n]
+  (if (-> n first keyword?)
+    ;; It's a parsed node
+    (node->drawable n)
+    ;; It's a vector of nodes
+    (mapv ->drawable n)))
 
 (defn blocks []
-  (let [b
-        (-> '(foo 1 :bar) ->tree tree->drawables
-            (assoc :x 500 :y 200))]
-    (println b)
-    (System/exit 0)
-    b))
+  (let [x 200
+        y 300
+        b (-> '(foo 1 :bar (+ bar t)) ->tree ->drawable)]
+    (def v b)
+    (-> b (assoc :x x :y y))))
+
+(comment
+  (def test-d
+    (-> '(foo 1 :bar) ->tree ->drawable)))
 
 ;;
 (comment
@@ -140,108 +179,10 @@
 ;;;;;;;
 ;;;;;;;
 ;;;;;;;
-  (defn build-fn-call [f args]
-    (let [fn-text (node->text)
-          args-text]
-      (container 0 0 fn-text args-text)))
-
-  (defn expr->texts [parsed-e]
-    (let [f (fn [acc [type v]]
-              (do
-                (println type)
-                v))]
-      (reduce f [] parsed-e))
-    #_(loop [acc [] [h tail] parsed-e]
-        (println (str (first h) ", " (second h)))
-        (recur (conj acc (second h)) tail)))
-
-  ;; (parse-str test-str)
-
-  (node->text :f "hello")
 
   (def amp-expr '(+ 0.5 (* 0.2 (sine01 (* twoPi (slow 2 bar))))))
   (def melody-expr '(from-list [0 0 3 0 2 2 5 12] bar))
 
   (def amp-sig (eval amp-expr))
   (def melody-sig (eval melody-expr))
-  (def freq-expr (list 'midinote->freq melody-expr))
-
-  (def param-font (font "FiraCode Regular" 25))
-
-  (def *highlighted (atom 0))
-
-  (def block1 (apply-paint  (rect (+ 100 (* 100 (mod1 t))) 200 300 300)
-                            (paint red)))
-
-  (def block2 (apply-paint  (rect 500 200 300 300)
-                            (paint blue)))
-
-  (def blockv [block1 block2])
-
-  (defn text-width [text]
-    (let [bounds (->width text)
-          left (._left bounds)
-          right (._right bounds)]
-      (- right left)))
-
-  (defn blocks []
-    (build-fn-call [:sym from-list]
-                   [[:vec [1 2 3]] [:sym bar]])
-    #_(let [f "mod1"
-            arg "t"
-            f-font (font 30)
-            arg-font (font 28)
-            x (half screen-width)
-            y (half screen-height)
-            f-text (text f x y f-font)
-            spacing 20
-            arg-left (+ x spacing (text-width f-text))
-            arg-text (text arg arg-left y arg-font)]
-        [f-text arg-text]))
-
-  (comment
-
-    ;; TODO
-    (defn param-block [param code style]
-      (let [param (text 0 0 (name param))
-            code code
-            vis (rect 10 10 10 10)]
-        (g/container x y param vis code)))
-
-    (defn block [name param-map]
-      (let [n-params (count (keys param-map))
-            y-offset (+ block-line-height 10)
-            param-blocks (for [[param {:keys [code style]}] param-map]
-                           (param-block param code style))]
-        (apply g/container param-blocks)))
-
-    (def test-block
-      (let [node-x 100
-            node-y 20
-            node-width 590
-            node-height 200
-            node-background-paint (paint palette-blue-medium)
-            node-stroke-paint (paint palette-red :stroke 2)
-            param-size 25
-            expr-size 18
-            key-paint (paint palette-red)
-            text-paint (paint palette-white)
-            background (-> (rect node-x node-y node-width node-height 20)
-                           (apply-paint node-background-paint))
-            parameters
-            [;; amp
-             (let [x (+ node-x 10)
-                   y (+ node-y 30)]
-               [(text ":amp" x y param-size key-paint)
-                #_(text #_(clojure.core/str (sample-at amp-expr (now))))
-                (text (str amp-sig) (+ x 80) y expr-size text-paint)
-                (text (clojure.core/str amp-expr) (+ x 10) (+ y param-size) expr-size text-paint)])
-
-             ;; freq
-             (let [x (+ node-x 10)
-                   y (+ node-y 100)]
-               [(text ":freq" x y param-size key-paint)
-                (text (str melody-sig) (+ x 80) y expr-size text-paint)
-                (text (clojure.core/str freq-expr) (+ x 10) (+ y param-size) expr-size text-paint)])]]
-
-        [background parameters]))))
+  (def freq-expr (list 'midinote->freq melody-expr)))
