@@ -60,11 +60,11 @@
 (do
   (def arg-whitespace-width
     (->
-     (width (text "a" 0 0 (type-font :arg) (type-paint :arg)))
+     (get-width (text "a" 0 0 (type-font :arg) (type-paint :arg)))
      (* 0.9)))
 
-  (def f-height (height (text "A" 0 0 (type-font :f) (type-paint :f))))
-  (def arg-height (height (text "A" 0 0 (type-font :arg) (type-paint :arg))))
+  (def f-height (get-height (text "A" 0 0 (type-font :f) (type-paint :f))))
+  (def arg-height (get-height (text "A" 0 0 (type-font :arg) (type-paint :arg))))
 
   (def arg-y-offset 0 #_(- (- f-height arg-height)))
   (def fn-args-spacing 15)
@@ -101,7 +101,7 @@
                      :paint (type-paint :f)))
         ;; TODO @performance this should probably be clojure.core/+ instead
         ;; but leaving it as a sig for now to see how it performs
-        args-x-offset (+ (width f)
+        args-x-offset (+ (get-width f)
                          fn-args-spacing)
         args (->drawable args)
         ;; Offset args
@@ -115,7 +115,7 @@
                             acc
                             (let [arg (first args)]
                               (recur (conj acc (update arg :x + offset))
-                                     (+ offset (width arg) arg-whitespace-width)
+                                     (+ offset (get-width arg) arg-whitespace-width)
                                      (rest args))))))
         width 150
         height 30
@@ -148,41 +148,3 @@
 (comment
   (def test-d
     (-> '(foo 1 :bar) ->tree ->drawable)))
-
-;;
-(comment
-
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-;;;;;;;
-
-  (def amp-expr '(+ 0.5 (* 0.2 (sine01 (* twoPi (slow 2 bar))))))
-  (def melody-expr '(from-list [0 0 3 0 2 2 5 12] bar))
-
-  (def amp-sig (eval amp-expr))
-  (def melody-sig (eval melody-expr))
-  (def freq-expr (list 'midinote->freq melody-expr)))
