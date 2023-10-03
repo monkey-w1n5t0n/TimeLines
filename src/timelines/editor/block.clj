@@ -6,33 +6,32 @@
             [timelines.editor.state :refer :all]
             [timelines.api :refer :all]))
 
-(def amp-expr '(+ 0.5 (* 0.2 (sine01 (* twoPi (slow 2 bar))))))
-(def melody-expr '(from-list [0 0 3 0 2 2 5 12] bar))
+(do
 
-(def amp-sig (eval amp-expr))
-(def melody-sig (eval melody-expr))
-(def freq-expr (list 'midinote->freq melody-expr))
+  (def param-font (font "FiraCode Regular" 25))
 
-(def param-font (font "FiraCode Regular" 25))
+  ;; TODO
+  (defn block [expr]
+    nil)
 
-(def *highlighted (atom 0))
+  (defn blocks []
+    (->
+     (block '(d1 (sqr (fast (fromList [1 2 3 4] bar)
+                            bar))))
+     (assoc :x 200 :y 100))))
 
-(def block1 (apply-paint  (rect 100 200 300 300)
-                          (paint red)))
-
-(def block2 (apply-paint  (rect 500 200 300 300)
-                          (paint blue)))
-
-(def blockv [block1 block2])
-
-(defn blocks []
-  (let [blocks [block1 block2]
-        {:keys [x y w h]} (get blockv @*highlighted)
-        highlight (-> (rect x y w h)
-                      (apply-paint (paint white :stroke))
-                      (assoc :stroke-width 10))]
-    (conj blockv highlight)))
-
+;;
+;;
+;;
+;;
+;;
+;;
+;;
+;;
+;;
+;;
+;;
+;;
 (comment
 
   ;; TODO

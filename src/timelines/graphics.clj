@@ -34,7 +34,7 @@
 
     P-Drawable
     (draw-impl [this]
-      (with-translation x y
+      (sk/with-translate x y
         (doseq [c children]
           (when c (draw c)))))
 
