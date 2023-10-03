@@ -4,6 +4,7 @@
             [clojure.walk :refer [postwalk prewalk]]
             [clojure.spec.alpha :as s]
             [timelines.time :as t]
+            [timelines.skija :as skj]
             [timelines.debug :refer [*dbg]]
             [timelines.macros :as m]))
 
@@ -191,7 +192,7 @@
       ;; e.g. [:self :children] or [:children :bounds :self]
       (draw-impl obj)
       (when children
-        (draw/with-translate x y
+        (skj/with-translate x y
           (doseq [x children] (draw x)))))))
 
 (extend-protocol P-Drawable
