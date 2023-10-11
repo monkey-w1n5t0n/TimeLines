@@ -300,7 +300,4 @@
 (defprotocol P-Dimensions
   (get-height [this])
   (get-width [this])
-  (get-bounds [this])
-  (set-height [this])
-  (set-width [this])
-  (set-bounds [this]))
+  (get-bounds [this]))
