@@ -1,14 +1,14 @@
 (ns timelines.api
   (:require
    [timelines.base-api :as base]
-   [timelines.signal :refer [make-signal var-sig? apply-premap apply-postmap]]
+   [timelines.signal :as sig]
    [timelines.expr :as e]
    [timelines.utils :as util]
    [timelines.macros :refer [with-ns <- <<- <-as]] ;; ->
    [timelines.protocols :refer :all]
    [clojure.pprint :refer [pprint]]))
 
-(def t (make-signal e/id-sigfn))
+(def t (sig/make-signal e/id-sigfn))
 
 (defmacro ->map
   [args]
@@ -23,55 +23,40 @@
 (do ;; TODO abstract this?
 ;;;; Premaps
   (defn fast [amt sig]
-    (apply-premap `(clojure.core/* ~amt) sig))
+    (sig/sig-premap `(fn [~'t] (clojure.core/* ~'t ~amt))
+                    sig))
+
+  (comment
+    (fast 2 t))
 
   (defn slow [amt sig]
-    (apply-premap `(clojure.core// ~amt) sig))
+    (sig/sig-premap `(fn [~'t] (clojure.core// ~'t ~amt))
+                    sig))
 
 ;;;; Postmaps
-  (defn + [& args]
-    (apply-postmap 'clojure.core/+ args))
-
-  (defn - [& args]
-    (apply-postmap 'clojure.core/-  args))
-
-  (defn * [& args]
-    (apply-postmap 'clojure.core/*  args))
-
-  (defn / [& args]
-    (apply-postmap 'clojure.core//  args))
-
-  (defn mod [& args]
-    (apply-postmap 'clojure.core/mod args))
-
+  (def + (sig/op-raise-post 'clojure.core/+))
+  (def - (sig/op-raise-post 'clojure.core/-))
+  (def * (sig/op-raise-post 'clojure.core/*))
+  (def / (sig/op-raise-post 'clojure.core//))
+  (def mod (sig/op-raise-post 'clojure.core/mod))
   (def % mod)
-
-  (defn mod1 [sig]
-    (mod sig 1.0))
-
+  (defn mod1 [sig] (mod sig 1.0))
   (def %1 mod1)
-
-  ;; TODO @properness there's got to be a better way...
-  ;; can't find out how to properly resolve Math/sin
-  (defn sine-impl [x]
-    (Math/sin x))
-
-  (defn sine [& args]
-    (apply-postmap 'Math/sin args))
-
+  (def sine (sig/op-raise-post 'Math/sin))
   (def sin sine)
-
-  (defn nth [& args]
-    (apply-postmap 'clojure.core/nth args))
-
-  (defn from-list [& args]
-    (apply-postmap 'timelines.base-api/from-list args))
-
-  (defn str [& args]
-    (apply-postmap 'clojure.core/str args))
-
-  (defn int [& args]
-    (apply-postmap 'clojure.core/int args)))
+  (def nth (sig/op-raise-post 'clojure.core/nth))
+  (def from-list (sig/op-raise-post 'timelines.base-api/from-list))
+  (def fromList from-list)
+  (def str (sig/op-raise-post 'clojure.core/str))
+  (def int (sig/op-raise-post 'clojure.core/int))
+  (def min (sig/op-raise-post 'clojure.core/min))
+  (def max (sig/op-raise-post 'clojure.core/max))
+  (def abs (sig/op-raise-post 'clojure.core/abs))
+  ;; ;; TODO @properness there's got to be a better way...
+  ;; ;; can't find out how to properly resolve Math/sin
+  ;; (defn sine-impl [x]
+  ;;   (Math/sin x))
+  )
 
 ;; convenience arithmetic
 (do
@@ -87,17 +72,12 @@
   (defn double [x] (* x 2))
   (defn triple [x] (* x 3)))
 
-(comment
-  (+ 1 t))
+(defn sine01 [x]
+  (+ 0.5 (* 0.5 (sine x))))
 
-;; Misc API functions
-(do
-  (defn sine01 [x]
-    (+ 0.5 (* 0.5 (sine x))))
-
-  (defn scale
-    [min max sig]
-    (+ min (* sig (- max min)))))
+(defn scale
+  [min max sig]
+  (+ min (* sig (- max min))))
 
 ;; TODO register ops so that we can introspect
 (comment

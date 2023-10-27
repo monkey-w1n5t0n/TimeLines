@@ -36,10 +36,13 @@
            :args :clojure.expr.fn/arglist
            :body :clojure.expr.fn/body))
 
-  (s/def :expr/lambda
-    (s/cat :fn   #{'fn 'clojure.core/fn}
-           :args :expr.fn/arglist
-           :body :expr.fn/body))
+  (s/def :clojure.expr/one-arg-fn
+    (s/and :clojure.expr/fn #(-> % :args count (= 1))))
+
+  (s/def :expr/lambda :clojure.expr/fn
+    #_(s/cat :fn   #{'fn 'clojure.core/fn}
+             :args :expr.fn/arglist
+             :body :expr.fn/body))
 
   ;; TODO @correctness check whether it satisfies IFn (or whatever it's called) instead?
   (s/def :clojure.expr/callable

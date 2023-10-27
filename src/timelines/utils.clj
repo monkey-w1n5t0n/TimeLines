@@ -18,6 +18,12 @@
   (some (set [element])
         lst))
 
+(defn any-one? [pred c]
+  (loop [c c]
+    (and (not-empty c)
+         (or (pred (first c))
+             (recur (rest c))))))
+
 (defn warn [msg]
   (println (str "Warning: " msg)))
 
@@ -151,3 +157,46 @@
 
 (defn symbol-prepend [pre sym]
   (->> sym name (str pre) symbol))
+
+(defn apply-fn-to [f arg]
+  (f arg))
+
+(def apply-fn-to-time apply-fn-to)
+
+(defn pass-time-to [t sigfn]
+  (apply-fn-to sigfn t))
+
+(defn single-arg-fn-bimap [pre f post]
+  (fn [x] (-> x pre f post)))
+
+(defn valid-conform? [x]
+  (not (= x :clojure.spec.alpha/invalid)))
+
+(defn get-arities [sym]
+  (let [fn-val (resolve sym)]
+    (if (and fn-val (fn? @fn-val))
+      (-> fn-val meta :arglists)
+      (throw (Exception. (str "The symbol " sym " is not a function."))))))
+
+(comment
+  (get-arities '+)
+  (for [arity (get-arities 'clojure.core/+)]
+    (let [])
+    `(fn [t_0]))
+
+  (def multi-arity-fn
+    (fn
+      ([x] (println "One arg:" x))
+      ([x y] (println "Two args:" x y))
+      ([x y z] (println "Three args:" x y z))))
+
+  (multi-arity-fn 1)     ;; Output: "One arg: 1"
+  (multi-arity-fn 1 2)   ;; Output: "Two args: 1 2"
+  (multi-arity-fn 1 2 3) ;; Output: "Three args: 1 2 3"
+
+  (defn double [x] (* 2 x))
+  (apply-fn-to double 2)
+
+  ;;
+  )
+

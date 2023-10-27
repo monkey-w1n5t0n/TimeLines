@@ -141,6 +141,7 @@
                            protocol-impls)]
       `(defrecord ~name ~params ~@protocol-impls))))
 
-(defmacro if-pf [v p f]
+(defmacro apply-if [v p f]
   `(let [v# ~v]
      (if (~p v#) (~f v#) v#)))
+

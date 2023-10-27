@@ -8,6 +8,7 @@
    [timelines.defaults :refer :all]
    [timelines.macros :refer [defs letmap pprint]]
    [timelines.time :refer [now]]
+   [timelines.api :as api]
    [timelines.globals :refer [*main-canvas]]
    [timelines.protocols :refer :all] ;; [P-Dimensions P-Samplable P-Drawable P-Skijable ->skija ->skija-impl draw draw-impl sample-at-impl sample-at draw-at]
                                         ; P-Samplable+Drawable
@@ -15,12 +16,13 @@
    [timelines.debug :refer [*dbg]]
    [timelines.skija :as sk]
    [timelines.specs :as specs]
-   [clojure.spec.alpha :as s]
    [timelines.globals :as globals]
-   [timelines.skija :as sk]
    [clojure.pprint :as pprint])
+
   (:import
    [org.jetbrains.skija Path Canvas PaintMode Typeface Font]))
+
+(declare default-paint)
 
 (sk/init)
 
@@ -33,6 +35,9 @@
 ;; Container
 ;; TODO
 (do
+  (def container-padding-x 0)
+  (def container-padding-y 0)
+
   (defrecord Container [x y children]
     P-Samplable
     (sample-at-impl [this t]
@@ -45,14 +50,40 @@
           (when c (draw c)))))
 
     P-Dimensions
-    #_(get-height [this]
-                  (+ padding-y (apply + (map get-height children))))
+    (get-height-impl [this]
+      (apply api/max (mapv get-height children)))
 
-    #_(get-width [this]
-                 (+ padding-x (apply max (map #(+ (:x) (get-width %)) children)))))
+    (get-width-impl [this]
+      (let [min-x (apply api/min (mapv :x children))
+            max-x (apply api/max (mapv #(api/+ (:x %)
+                                               (get-width %))
+                                       children))]
+        (api/- max-x min-x))))
 
-  (defn container [x y & children]
+  (defn container [x y children]
     (->Container x y (into [] children))))
+
+;; Vectors
+(do
+  (extend-type clojure.lang.PersistentVector
+    P-Dimensions
+    (get-height-impl [this]
+      (let [min-y (->> this (map :y) (apply api/min))
+            max-y (apply api/max
+                         (map #(api/+ (:y %) (get-height %))
+                              this))]
+        (api/abs (api/- max-y min-y))))
+    (get-width-impl [this]
+      (let [min-x (apply api/min (map :x this))
+            max-x (apply api/max (map #(api/+ (:x %)
+                                              (get-width %))
+                                      this))]
+        (api/abs (api/- max-x min-x))))))
+
+(comment
+
+;;
+  )
 
 ;; Shapes
 (do
@@ -78,8 +109,8 @@
           (.drawRect @*main-canvas rect paint))))
 
     P-Dimensions
-    (get-height [this] h)
-    (get-width [this] w))
+    (get-height-impl [this] h)
+    (get-width-impl  [this] w))
 
   (defn rect
     ([x y w h]
@@ -110,8 +141,8 @@
         (.drawOval @*main-canvas oval paint)))
 
     P-Dimensions
-    (get-height [this] h)
-    (get-width [this] w)))
+    (get-height-impl [this] h)
+    (get-width-impl [this] w)))
 
 ;; Paints
 (do
@@ -157,7 +188,10 @@
      (map->Paint {:color color :style style :stroke-width stroke-width})))
 
   (defn apply-paint [obj paint]
-    (assoc obj :paint paint)))
+    (assoc obj :paint paint))
+
+  (def default-paint
+    (paint black)))
 
 ;; Text
 (do
@@ -168,8 +202,6 @@
     (Font. typeface (float size)))
 
   (defn make-skija-font [name size]
-    (when @*dbg
-      (println (str "make-skija-font args: " name ", " size)))
     (make-with-size (@sk/*font-cache name) size))
 
   (defrecord R-Font [name size]
@@ -187,7 +219,7 @@
 
     P-Dimensions
     ;; TODO @correctness verify this
-    (get-height [this] size))
+    (get-height-impl [this] size))
 
   (def default-font-name "FiraCode Regular")
   (def default-font-size 20)
@@ -215,11 +247,12 @@
                    (->skija paint)))
 
     P-Dimensions
-    (get-height [this] (get-height font))
-    (get-width [this] (let [bounding-box  (.measureText (->skija font) text)
-                            left (._left bounding-box)
-                            right (._right bounding-box)]
-                        (- right left)))
+    (get-height-impl [this] (get-height font))
+    (get-width-impl [this]
+      (let [bounding-box  (.measureText (->skija font) text)
+            left (._left bounding-box)
+            right (._right bounding-box)]
+        (- right left)))
 
     Object
     (toString [this]
@@ -249,3 +282,11 @@
     org.jetbrains.skija.Font
     (sample-at-impl [this _]
       this)))
+
+(comment
+
+  (def a #timelines.graphics.Paint{:color 4294967295, :alpha nil, :style nil, :stroke-width nil, :stroke-cap nil})
+  (sample-at a 2)
+
+;;
+  )

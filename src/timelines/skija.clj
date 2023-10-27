@@ -1,5 +1,6 @@
 (ns timelines.skija
-  (:require [clojure.java.io :as io])
+  (:require [clojure.java.io :as io]
+            [timelines.protocols :as p])
   (:import
    [org.jetbrains.skija
     ;; BackendRenderTarget
@@ -40,3 +41,7 @@
 
 (defn init []
   (load-fonts))
+
+;; (extend-type Paint
+;;   p/P-Samplable
+;;   (sample-at-impl [this] this))

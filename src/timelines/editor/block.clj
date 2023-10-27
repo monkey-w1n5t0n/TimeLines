@@ -7,19 +7,33 @@
             [timelines.colors :refer :all]
             [timelines.defaults :refer :all]
             [timelines.editor.state :refer :all]
+            [flow-storm.api :as fs-api]
             [timelines.specs :refer :all]
             [timelines.api :refer :all]))
+
+(comment
+  (fs-api/local-connect))
+
+(defn arrange-horizontally [offset records]
+  (reduce (fn [acc record]
+            (let [prev-x (if (empty? acc) 0 (:x (last acc)))
+                  prev-width (if (empty? acc) 0 (get-width (last acc)))
+                  new-x (+ prev-x prev-width (if (empty? acc) 0 offset))]
+              (conj acc (assoc record :x new-x))))
+          []
+          records))
 
 ;; Specs
 (do
   (s/def ::drawable any?)
   (s/def ::atom (s/or :t #(= % 't)
                       :sym symbol?
-                      :map map?
+                      ;; :map map?
                       :str string?
                       :num number?
                       :keyword keyword?))
 
+  (s/def ::map map?)
   (s/def ::quoted-list (s/and #(or (list? %)
                                    (instance? clojure.lang.Cons %))
                               (s/cat :quote-op #(= 'quote %)
@@ -32,7 +46,7 @@
                           :args (s/* ::expr)))
   (s/def ::expr (s/or
                  :atom ::atom
-                 :quoted-list ::quoted-list
+                 ;; :quoted-list ::quoted-list
                  :vec ::vector
                  :fn-call ::fn-call)))
 
@@ -58,15 +72,15 @@
   (get @*type-paints x default-paint))
 
 (do
-  (def arg-whitespace-width
-    (->
-     (get-width (text "a" 0 0 (type-font :arg) (type-paint :arg)))
-     (* 0.9)))
 
-  (def f-height (get-height (text "A" 0 0 (type-font :f) (type-paint :f))))
-  (def arg-height (get-height (text "A" 0 0 (type-font :arg) (type-paint :arg))))
+  #_(def f-height (get-height (text "A" 0 0
+                                    (type-font :f)
+                                    (type-paint :f))))
+  #_(def arg-height (get-height (text "A" 0 0
+                                      (type-font :arg)
+                                      (type-paint :arg))))
 
-  (def arg-y-offset 0 #_(- (- f-height arg-height)))
+  (def fn-args-y-offset 0)
   (def fn-args-spacing 15)
   ;;
   )
@@ -96,55 +110,88 @@
 
 ;; Compound types
 (defn fn-call->drawable [{:keys [f args] :as e}]
-  (let [f (-> (node->drawable f)
+  (let [x-padding 0
+        y-padding 0
+        space-before-args 0
+        f (-> (node->drawable f)
               (assoc :font (type-font :f)
                      :paint (type-paint :f)))
         ;; TODO @performance this should probably be clojure.core/+ instead
         ;; but leaving it as a sig for now to see how it performs
-        args-x-offset (+ (get-width f)
+        args-x-offset (+ (get-width-impl f)
                          fn-args-spacing)
         args (->drawable args)
         ;; Offset args
-        args (container (+ arg-whitespace-width
+        args (container (+ fn-args-spacing
                            args-x-offset)
-                        arg-y-offset
-                        (loop [acc []
-                               offset 0
-                               args args]
-                          (if (empty? args)
-                            acc
-                            (let [arg (first args)]
-                              (recur (conj acc (update arg :x + offset))
-                                     (+ offset (get-width arg) arg-whitespace-width)
-                                     (rest args))))))
-        width 150
-        height 30
+                        fn-args-y-offset
+                        (arrange-horizontally fn-args-spacing args)
+                        #_(loop [acc []
+                                 offset 0
+                                 args args]
+                            (if (empty? args)
+                              acc
+                              (let [arg (first args)]
+                                (recur (conj acc (update arg :x + offset))
+                                       (+ offset (get-width-impl arg) arg-whitespace-width)
+                                       (rest args))))))
+        width (+ x-padding (get-width f) space-before-args (get-width args))
+        height (+ y-padding (get-height f))
         background (-> (rect 0 -20 width height)
-                       (apply-paint (paint palette-white)))]
-    (container 0 0 [background f args])))
+                       (apply-paint (paint palette-white)))
+        children [background f args]]
+    (container 0 0 children)))
+
+#_(defn arrange-with-spacing [spacing nodes]
+    (loop [acc []
+           nodes nodes
+           running-offset 0]
+      (if (empty? nodes)
+        acc
+        (let [obj (first nodes)]
+          (recur (conj acc (update :x + running-offset))
+                 (rest nodes)
+                 (+ running-offset (get-width obj)))))))
+
+(def vec-arg-spacing 10)
+
+(defn vec->drawable [body]
+  (let [body (mapv ->drawable body)
+        body (arrange-horizontally vec-arg-spacing body)
+        max-height (apply max (mapv get-height body))
+        background (-> (rect 0 (+ 3 (- max-height)) (get-width body) max-height)
+                       (apply-paint (paint white :stroke)))] ;; TODO find correct height
+    (container 0 0 [background body])))
 
 (defn node->drawable [[type body]]
   (case type
     :atom (atom->drawable body)
     :fn-call (fn-call->drawable body)
-    :vec (->drawable body)
+    :vec (vec->drawable body)
     :quoted-list nil
     nil))
 
-(defn ->drawable [n]
-  (if (-> n first keyword?)
+#_(defn ->drawable [n]
+    (if (-> n first keyword?)
     ;; It's a parsed node
-    (node->drawable n)
+      (node->drawable n)
     ;; It's a vector of nodes
-    (mapv ->drawable n)))
+      (mapv ->drawable n)))
 
-(defn blocks []
-  (let [x 200
-        y 300
-        b (-> '(foo 1 :bar (+ bar t)) ->tree ->drawable)]
-    (def v b)
-    (-> b (assoc :x x :y y))))
+(defn ->block [e]
+  (-> e ->tree node->drawable))
 
 (comment
-  (def test-d
-    (-> '(foo 1 :bar) ->tree ->drawable)))
+
+  (sample-at (blocks) 1)
+
+  (def test-exprs '[1
+                    (+ 1 2)
+                    (- 3 (* 1.2 8))
+                    t
+                    (+ 1 t)
+                    (fromList [1 2 3] t)])
+
+  (clojure.pprint/pprint (map ->tree test-exprs))
+  ;;
+  )

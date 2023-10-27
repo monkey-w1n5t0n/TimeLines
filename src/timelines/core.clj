@@ -5,12 +5,16 @@
    ;; [timelines.editor :as editor]
    [timelines.editor :as editor]
    [timelines.keyboard :as key]
+   [flow-storm.api :as fs-api]
    [timelines.utils :refer [color]])
   (:import
    [org.jetbrains.skija BackendRenderTarget ColorSpace DirectContext FramebufferFormat Surface SurfaceColorFormat SurfaceOrigin]
    [org.lwjgl.glfw Callbacks GLFW GLFWErrorCallback GLFWKeyCallbackI]
    [org.lwjgl.opengl GL GL11]
    [org.lwjgl.system MemoryUtil]))
+
+(comment
+  (fs-api/local-connect))
 
 (def target-fps 60)
 
@@ -44,6 +48,8 @@
       [(first x) (first y)])))
 
 (defn -main [& args]
+  (fs-api/local-connect)
+
   (init-GLFW!)
   (let [window (create-main-window! screen-width screen-height "Skija LWJGL Demo")]
 
@@ -79,7 +85,7 @@
           (when (not (GLFW/glfwWindowShouldClose window))
             (let [start-time (System/nanoTime)]
 
-        ;; RENDER
+              ;; RENDER
               (.clear canvas (color 0xFFFFFFFF))
               (let [layer (.save canvas)]
                 (editor/draw-screen)
@@ -89,25 +95,25 @@
               (GLFW/glfwSwapBuffers window)
               (GLFW/glfwPollEvents)
 
-        ;; FPS
+              ;; FPS
               (swap! time-deltas conj (- (System/nanoTime) start-time))
 
-        ;; Keep only the last 100 time measurements to calculate FPS
+              ;; Keep only the last 100 time measurements to calculate FPS
               (when (> (count @time-deltas) 100)
                 (swap! time-deltas subvec 1))
 
-        ;; Calculate FPS every 100 frames
+              ;; Calculate FPS every 100 frames
               (when (zero? (mod (count @time-deltas) 100))
                 (let [avg-time (/ (reduce + @time-deltas) (count @time-deltas))
                       fps (/ 1e9 avg-time)]
                   (reset! avg-fps fps)))
 
-        ;; Calculate the time this frame took
+              ;; Calculate the time this frame took
               (let [end-time (System/nanoTime)
                     frame-duration (- end-time start-time)
                     sleep-time (- target-ns-per-frame frame-duration)]
                 (when (> sleep-time 0)
-            ;; Convert nanoseconds to milliseconds for Thread/sleep
+                  ;; Convert nanoseconds to milliseconds for Thread/sleep
                   (Thread/sleep (long (quot sleep-time 1e6)))))
 
               (recur)))))

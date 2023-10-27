@@ -1,19 +1,27 @@
+(comment
+
+  (defproject my.project "1.0.0"
+    :profiles
+    :main foo.core))
+
 (require 'leiningen.core.eval)
 
 (def dependencies
-  '[[org.clojure/clojure "1.11.1"]
+  '[;; [org.clojure/clojure "1.11.1"]
     [org.jetbrains.skija/skija-linux "0.93.1"]
     ;; [org.lwjgl/lwjgl-glfw "3.3.2"]
     ;; [org.lwjgl/lwjgl "3.3.2"]
     [nrepl "1.1.0-alpha1"]
+    [org.mentat/emmy "0.31.0"]
     [org.clojure/test.check "1.1.1"]
     [org.clojure/core.specs.alpha "0.2.62"]
+    [com.clojure-goes-fast/clj-async-profiler "1.1.0"]
     [com.rpl/specter "1.1.4"]
     [net.sekao/odoyle-rules "1.1.0"]])
 
 ;; per-os jvm-opts code cribbed from Overtone
 (def JVM-OPTS
-  {:common   []
+  {:common   ["-Djdk.attach.allowAttachSelf"]
    ;; TODO add these to linux as well? at least first one
    :macosx   ["-XstartOnFirstThread" "-Djava.awt.headless=true"]
    :linux    []
@@ -100,5 +108,10 @@
   :jvm-opts ^:replace ~(jvm-opts)
   :main ^:skip-aot timelines.core
   :target-path "target/%s"
-  :profiles {:uberjar {:aot :all
+  :profiles {:dev {:dependencies [[com.github.flow-storm/clojure "RELEASE"]
+                                  [com.github.flow-storm/flow-storm-dbg "RELEASE"]]
+                   :exclusions [org.clojure/clojure] ;; for disabling the official compiler
+                   :jvm-opts ["-Dclojure.storm.instrumentEnable=false"
+                              "-Dclojure.storm.instrumentOnlyPrefixes=clojure.core,timelines."]}
+             :uberjar {:aot :all
                        :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}})
