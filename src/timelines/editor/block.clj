@@ -181,6 +181,18 @@
 (defn ->block [e]
   (-> e ->tree node->drawable))
 
+(defonce *selected (atom nil))
+
+(defn blocks []
+  (into []
+        (let [num 5]
+          (for [i (clojure.core/range num)]
+            (let [x (+ 100 (* 300 (/ i num)))
+                  y (+ 200 (* 300 (/ i num)))
+                  w 200
+                  h 200]
+              (rect x y w h))))))
+
 (comment
 
   (sample-at (blocks) 1)

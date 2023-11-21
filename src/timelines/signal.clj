@@ -21,6 +21,8 @@
 (declare sig-postmap)
 (declare apply-bimap)
 
+(def eval-memo (memoize eval))
+
 ;; TODO a signal should be const if e.g time is multiplied by 0
 ;; or replaced by a const
 (defrecord Signal [expr const?]
@@ -30,7 +32,7 @@
   ;; TODO @correctness the expr may actually be an fn of no arguments,
   ;; in which case it should be evalled and then called
   (sample-at-impl [this time]
-    ((eval expr) time)
+    ((eval-memo expr) time)
     #_(if const?
         (eval expr)
         ((eval expr) time)))
