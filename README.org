@@ -1,2 +1,17 @@
-# timelines
-A live coding instrument. Actively WIP.
+For the first (now deprecated) version of TimeLines, written in Haskell, look [here](https://github.com/lnfiniteMonkeys/TimeLines-hs).
+
+* Development Status
+Pre-alpha, actively WIP.
+
+** Parts Status
+- ~Fully Working~ | Symbolic signal expr engine
+- ~Fully Working~ | Signal sampling engine
+- ~Mostly Working~ | Rendering (via Skia) of 2D objects where every parameter is a signal
+- ~WIP~ | Optimizing compiler
+- ~WIP~ | GUI framework
+- ~Not even started :(~ | Audio Engine
+
+* What is it?
+A live coding instrument where _everything_ is a function of time.
+
+
