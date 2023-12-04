@@ -1,4 +1,4 @@
-For the first (now deprecated) version of TimeLines, written in Haskell, look [here](https://github.com/lnfiniteMonkeys/TimeLines-hs).
+For the first (now deprecated) version of TimeLines, written in Haskell, look [[https://github.com/lnfiniteMonkeys/TimeLines-hs)][here]].
 
 * Development Status
 Pre-alpha, actively WIP.
