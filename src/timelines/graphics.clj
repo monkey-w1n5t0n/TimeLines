@@ -13,7 +13,6 @@
                                         ; P-Samplable+Drawable
    [timelines.macros :as macro]
    [timelines.debug :refer [*dbg]]
-   [timelines.skija :as sk]
    [timelines.specs :as specs]
    [clojure.spec.alpha :as s]
    [timelines.globals :as globals]
@@ -27,7 +26,7 @@
 ;; Container
 ;; TODO
 (do
-  (defrecord Container [x y children]
+  (defrecord Container [x y children padding-x padding-y]
     P-Samplable
     (sample-at-impl [this t]
       (u/map-record #(sample-at % t) this))
@@ -39,14 +38,16 @@
           (when c (draw c)))))
 
     P-Dimensions
-    #_(->height [this]
-                (+ padding-y (apply + (map ->height children))))
+    (get-height [this]
+      (+ (or padding-y 0) (apply + (map get-height children))))
 
-    #_(->width [this]
-               (+ padding-x (apply max (map #(+ (:x) (->width %)) children)))))
+    (get-width [this]
+      (+ (or padding-x 0) (apply max (mapv #(+ x
+                                               (:x %)
+                                               (get-width %)) children)))))
 
   (defn container [x y & children]
-    (->Container x y children)))
+    (->Container x y (into [] children) 0 0)))
 
 ;; Shapes
 (do
@@ -72,8 +73,8 @@
           (.drawRect @*main-canvas rect paint))))
 
     P-Dimensions
-    (->height [this] h)
-    (->width [this] w))
+    (get-height [this] h)
+    (get-width [this] w))
 
   (defn rect
     ([x y w h]
@@ -104,8 +105,8 @@
         (.drawOval @*main-canvas oval paint)))
 
     P-Dimensions
-    (->height [this] h)
-    (->width [this] w)))
+    (get-height [this] h)
+    (get-width [this] w)))
 
 ;; Paints
 (do
@@ -181,7 +182,7 @@
 
     P-Dimensions
     ;; TODO @correctness verify this
-    (->height [this] size))
+    (get-height [this] size))
 
   (def default-font-name "FiraCode Regular")
   (def default-font-size 20)
@@ -209,8 +210,11 @@
                    (->skija paint)))
 
     P-Dimensions
-    (->height [this] (->height font))
-    (->width [this] (.measureText (->skija font) text))
+    (get-height [this] (get-height font))
+    (get-width [this] (let [bounding-box  (.measureText (->skija font) text)
+                            left (._left bounding-box)
+                            right (._right bounding-box)]
+                        (clojure.core/- right left)))
 
     Object
     (toString [this]

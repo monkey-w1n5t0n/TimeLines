@@ -280,3 +280,24 @@
   (defn read-e [rf f]
     (fn [e]
       (f e (rf e)))))
+<<<<<<< refs/remotes/origin/dev
+=======
+
+(defn sample-at [x t]
+  (when @*dbg
+    (println (str "sample-at args: " x ", t")))
+  (when x
+    (if (satisfies? P-Samplable x)
+      (sample-at-impl x t)
+      (throw (Exception. (str "sample-at: " x))))))
+
+(defn draw-at [obj t]
+  (-> obj (sample-at t) draw))
+
+(defn draw-now [x]
+  (draw-at x (t/now)))
+
+(defprotocol P-Dimensions
+  (get-height [this])
+  (get-width [this])
+  (get-bounds [this]))
