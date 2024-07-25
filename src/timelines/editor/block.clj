@@ -1,15 +1,27 @@
 (ns timelines.editor.block
-  (:require [timelines.graphics :as g]
-            [timelines.graphics :refer :all]
-            [timelines.protocols :refer :all]
-            [clojure.spec.alpha :as s]
-            [timelines.globals :refer :all]
-            [timelines.colors :refer :all]
-            [timelines.defaults :refer :all]
-            [timelines.editor.state :refer :all]
-            [timelines.specs :refer :all]
-            [timelines.api :refer :all]))
+  (:require
+   [clojure.spec.alpha :as s]
+   [clojure.spec.test.alpha :as stest]
+   [timelines.graphics :as g]
+   [timelines.graphics :refer :all]
+   [timelines.protocols :refer :all]
+   [timelines.globals :refer :all]
+   [timelines.colors :refer :all]
+   [timelines.defaults :refer :all]
+   [timelines.editor.state :refer :all]
+   [timelines.specs :refer :all]
+   ;; [timelines.api :refer :all]
+   ))
 
+;; Specs
+(do
+  (s/def ::drawable any?)
+  (s/def ::atom (s/or :t #(= % 't)
+                      :sym symbol?
+                      :map map?
+                      :str string?
+                      :num number?
+                      :keyword keyword?))
 ;; Specs
 (do
   (s/def ::drawable any?)
@@ -80,9 +92,9 @@
                              "Invalid tree, see s/explain printout")))
       parse-result)))
 
-;; (s/fdef atom->drawable
-;;   :args ::atom
-;;   :ret ::drawable)
+  ;; (s/fdef atom->drawable
+  ;;   :args ::atom
+  ;;   :ret ::drawable)
 
 (declare node->drawable)
 ;; Atoms
@@ -93,6 +105,22 @@
     (text string 0 0 font paint)))
 
 (declare ->drawable)
+
+  ;; (s/fdef fn-call->drawable
+  ;;   :args ::fn-call
+  ;;   :ret ::drawable)
+
+  (defn layout-args [args]
+    (loop [idx 0
+           acc 0
+           args args]
+      (if (or (empty? args)
+              (= idx (dec (count args))))
+        args
+        (let [x-offset (clojure.core/+ acc fn-args-spacing)]
+          (recur (inc idx)
+                 x-offset
+                 (update-in args [idx :x] + x-offset))))))
 
 ;; Compound types
 (defn fn-call->drawable [{:keys [f args] :as e}]

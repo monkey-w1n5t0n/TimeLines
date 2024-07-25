@@ -13,7 +13,6 @@
                                         ; P-Samplable+Drawable
    [timelines.macros :as macro]
    [timelines.debug :refer [*dbg]]
-   [timelines.skija :as sk]
    [timelines.specs :as specs]
    [clojure.spec.alpha :as s]
    [timelines.globals :as globals]
@@ -27,26 +26,28 @@
 ;; Container
 ;; TODO
 (do
-  (defrecord Container [x y children]
+  (defrecord Container [x y children padding-x padding-y]
     P-Samplable
     (sample-at-impl [this t]
       (u/map-record #(sample-at % t) this))
 
     P-Drawable
     (draw-impl [this]
-      (with-translation x y
+      (sk/with-translate x y
         (doseq [c children]
           (when c (draw c)))))
 
     P-Dimensions
-    #_(get-height [this]
-                  (+ padding-y (apply + (map get-height children))))
+    (get-height [this]
+      (+ (or padding-y 0) (apply + (map get-height children))))
 
-    #_(get-width [this]
-                 (+ padding-x (apply max (map #(+ (:x) (get-width %)) children)))))
+    (get-width [this]
+      (+ (or padding-x 0) (apply max (mapv #(+ x
+                                               (:x %)
+                                               (get-width %)) children)))))
 
   (defn container [x y & children]
-    (->Container x y (into [] children))))
+    (->Container x y (into [] children) 0 0)))
 
 ;; Shapes
 (do
@@ -213,7 +214,7 @@
     (get-width [this] (let [bounding-box  (.measureText (->skija font) text)
                             left (._left bounding-box)
                             right (._right bounding-box)]
-                        (- right left)))
+                        (clojure.core/- right left)))
 
     Object
     (toString [this]
