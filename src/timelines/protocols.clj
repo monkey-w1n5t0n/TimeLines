@@ -280,8 +280,6 @@
   (defn read-e [rf f]
     (fn [e]
       (f e (rf e)))))
-<<<<<<< refs/remotes/origin/dev
-=======
 
 (defn sample-at [x t]
   (when @*dbg

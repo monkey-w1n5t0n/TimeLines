@@ -2,7 +2,7 @@
   (:require [timelines.colors :refer :all]
             [timelines.utils :as u])
   (:import
-   [org.jetbrains.skija Paint PaintMode]))
+   [io.github.humbleui.skija Paint PaintMode]))
 
 (def default-color palette-white)
 (def default-stroke-width 1)
@@ -10,7 +10,7 @@
 (def default-paint-color default-color)
 
 (def default-paint
-  (doto (org.jetbrains.skija.Paint.)
+  (doto (Paint.)
     (.setColor (u/color default-color))
     (.setStrokeWidth  default-stroke-width)
     (.setMode (PaintMode/FILL))

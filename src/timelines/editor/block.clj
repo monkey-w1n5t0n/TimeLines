@@ -21,8 +21,8 @@
                       :map map?
                       :str string?
                       :num number?
-                      :keyword keyword?))
-;; Specs
+                      :keyword keyword?)))
+  ;; Specs
 (do
   (s/def ::drawable any?)
   (s/def ::atom (s/or :t #(= % 't)
@@ -110,17 +110,17 @@
   ;;   :args ::fn-call
   ;;   :ret ::drawable)
 
-  (defn layout-args [args]
-    (loop [idx 0
-           acc 0
-           args args]
-      (if (or (empty? args)
-              (= idx (dec (count args))))
-        args
-        (let [x-offset (clojure.core/+ acc fn-args-spacing)]
-          (recur (inc idx)
-                 x-offset
-                 (update-in args [idx :x] + x-offset))))))
+(defn layout-args [args]
+  (loop [idx 0
+         acc 0
+         args args]
+    (if (or (empty? args)
+            (= idx (dec (count args))))
+      args
+      (let [x-offset (clojure.core/+ acc fn-args-spacing)]
+        (recur (inc idx)
+               x-offset
+               (update-in args [idx :x] + x-offset))))))
 
 ;; Compound types
 (defn fn-call->drawable [{:keys [f args] :as e}]
@@ -167,11 +167,7 @@
     (mapv ->drawable n)))
 
 (defn blocks []
-  (let [x 200
-        y 300
-        b (-> '(foo 1 :bar (+ bar t)) ->tree ->drawable)]
-    (def v b)
-    (-> b (assoc :x x :y y))))
+  (rect 50 50 100 100))
 
 (comment
   (def test-d

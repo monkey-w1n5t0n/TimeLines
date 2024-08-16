@@ -2,7 +2,7 @@
   (:require [clojure.java.io :as io]
             [timelines.globals :refer [*main-canvas]])
   (:import
-   [org.jetbrains.skija
+   [io.github.humbleui.skija
     ;; BackendRenderTarget
     ;; Canvas
     ;; ColorSpace

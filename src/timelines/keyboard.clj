@@ -43,9 +43,8 @@
 
 (defn handle-event [key action]
   (let [key key
-        ;; action ([:up :down :else] action) TODO there's more than this
-        ]
-    (when (= action 0)
-      (do (flush)
-          (print "(" key " " (keymap key) ") ")
-          (flush)))))
+        ;; TODO there's more than this
+        action ([:up :down :else] action)]
+    (do (flush)
+        (print (str "(" key ", " (keymap key) ", " action ") "))
+        (flush))))

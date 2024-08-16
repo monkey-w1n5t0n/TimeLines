@@ -19,7 +19,9 @@
    [timelines.skija :as sk]
    [clojure.pprint :as pprint])
   (:import
-   [org.jetbrains.skija Path Canvas PaintMode Typeface Font]))
+   [io.github.humbleui.skija Path Canvas PaintMode Typeface Font RRect
+    ;; SkRect RRect
+    ]))
 
 (sk/init)
 
@@ -60,8 +62,8 @@
     P-Skijable
     (->skija-impl [this]
       (if (and r (> r 0))
-        (org.jetbrains.skija.RRect/makeXYWH x y w h r)
-        (org.jetbrains.skija.Rect/makeXYWH x y w h)))
+        (RRect/makeXYWH x y w h r)
+        (io.github.humbleui.skija.Rect/makeXYWH x y w h)))
 
     P-Drawable
     #_(draw-impl [this] (draw this @timelines.globals/*main-canvas))
@@ -96,7 +98,7 @@
 
     P-Skijable
     (->skija-impl
-      [this] (org.jetbrains.skija.Rect/makeXYWH x y w h))
+      [this] (io.github.humbleui.skija.Rect/makeXYWH x y w h))
 
     P-Drawable
     (draw-impl [{:keys [paint] :as oval}]
@@ -126,7 +128,7 @@
 
     P-Skijable
     (->skija-impl [{:keys [color style stroke-width alpha] :as paint}]
-      (doto (org.jetbrains.skija.Paint.)
+      (doto (Paint.)
         (.setColor (u/color (or color default-color)))
         (.setStrokeWidth (or stroke-width default-stroke-width))
         (.setMode (paint-style->skija (or style default-paint-style)))
@@ -140,7 +142,7 @@
 
   ;; TODO @design this shouldn't really exist, should it?
   (extend-protocol P-Skijable
-    org.jetbrains.skija.Paint
+    io.github.humbleui.skija.Paint
     (->skija-impl [this] this))
 
   (defn paint
@@ -237,11 +239,11 @@
 (do
 
   (extend-protocol P-Samplable
-    org.jetbrains.skija.PaintMode
+    io.github.humbleui.skija.PaintMode
     (sample-at-impl [this _]
       this)
 
-    org.jetbrains.skija.Font
+    io.github.humbleui.skija.Font
     (sample-at-impl [this _]
       this)))
 

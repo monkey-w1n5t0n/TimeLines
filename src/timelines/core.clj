@@ -7,7 +7,7 @@
    [timelines.keyboard :as key]
    [timelines.utils :refer [color]])
   (:import
-   [org.jetbrains.skija BackendRenderTarget ColorSpace DirectContext FramebufferFormat Surface SurfaceColorFormat SurfaceOrigin]
+   [io.github.humbleui.skija BackendRenderTarget ColorSpace DirectContext FramebufferFormat Surface SurfaceColorFormat SurfaceOrigin]
    [org.lwjgl.glfw Callbacks GLFW GLFWErrorCallback GLFWKeyCallbackI]
    [org.lwjgl.opengl GL GL11]
    [org.lwjgl.system MemoryUtil]))

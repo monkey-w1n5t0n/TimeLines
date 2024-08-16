@@ -1,8 +1,9 @@
 (require 'leiningen.core.eval)
 
 (def dependencies
-  '[[org.clojure/clojure "1.11.1"]
-    [org.jetbrains.skija/skija-linux "0.93.1"]
+  '[[org.clojure/clojure "1.11.4"]
+    [io.github.humbleui/skija-linux-x64 "0.116.2"]
+    [io.github.humbleui/skija-shared "0.116.2"]
     ;; [org.lwjgl/lwjgl-glfw "3.3.2"]
     ;; [org.lwjgl/lwjgl "3.3.2"]
     [nrepl "1.1.0-alpha1"]
