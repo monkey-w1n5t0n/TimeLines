@@ -4,6 +4,7 @@
   '[[org.clojure/clojure "1.11.4"]
     [io.github.humbleui/skija-linux-x64 "0.116.2"]
     [io.github.humbleui/skija-shared "0.116.2"]
+    [org.clojure/core.async "1.6.681"]
     ;; [org.lwjgl/lwjgl-glfw "3.3.2"]
     ;; [org.lwjgl/lwjgl "3.3.2"]
     [nrepl "1.1.0-alpha1"]
@@ -101,5 +102,12 @@
   :jvm-opts ^:replace ~(jvm-opts)
   :main ^:skip-aot timelines.core
   :target-path "target/%s"
+  :test-paths ["test"]
   :profiles {:uberjar {:aot :all
-                       :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}})
+                       :jvm-opts ["-Dclojure.compiler.direct-linking=true"]}
+             :dev {:dependencies [[com.github.flow-storm/clojure "RELEASE"]
+                                  [com.github.flow-storm/flow-storm-dbg "RELEASE"]]
+                   ;; for disabling the official compiler
+                   :exclusions [org.clojure/clojure]
+                   :jvm-opts ["-Dclojure.storm.instrumentEnable=true"
+                              "-Dclojure.storm.instrumentOnlyPrefixes=timelines.async-engine"]}})

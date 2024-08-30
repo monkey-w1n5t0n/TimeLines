@@ -10,23 +10,195 @@
 ;; TODO should implement both premap and postmap under bimap
 ;; increment time arg every time something is bimapped
 
+(defprotocol Compilable
+  (compile [this]))
+
+(extend-protocol Compilable
+  Long
+  (compile [this] this)
+
+  clojure.lang.BigInt
+  (compile [this] this)
+
+  Double
+  (compile [this] this)
+
+  BigDecimal
+  (compile [this] this)
+
+  clojure.lang.Ratio
+  (compile [this] this)
+
+  String
+  (compile [this] this)
+
+  Character
+  (compile [this] this)
+
+  clojure.lang.Symbol
+  (compile [this] this)
+
+  clojure.lang.Keyword
+  (compile [this] this)
+
+  Boolean
+  (compile [this] this)
+
+  nil
+  (compile [this] this)
+
+  clojure.lang.PersistentList
+  (compile [this] (into '() (map compile this)))
+
+  clojure.lang.PersistentVector
+  (compile [this] (mapv compile this))
+
+  clojure.lang.PersistentArrayMap
+  (compile [this] this)
+
+  clojure.lang.PersistentHashMap
+  (compile [this] this)
+
+  clojure.lang.PersistentHashSet
+  (compile [this] this)
+
+  java.util.regex.Pattern
+  (compile [this] this))
+
+;; (foo 1 2 3)
+(defrecord fn-call [f args]
+  Compilable
+  (compile  [this]
+    (conj (map compile args) (compile f))))
+
+;; pi = 3.14
+(defrecord const-def [name val]
+  Compilable
+  (compile  [this]
+    (list 'def name (compile val))))
+
+;; my-lfo = (sine (* 2 pi t))
+(defrecord sig-def [name expr]
+  Compilable
+  (compile [this]
+    (list 'def (:name this) (compile (:expr this)))))
+
+;; my-fn arg1 arg2 = (+ arg1 arg2)
+(defrecord fn-def [name lambda]
+  Compilable
+  (compile [this]
+    (list 'defn (:name this)
+          (compile (:lambda this)))))
+
+;; fn t = (+ t 1))
+(defrecord lambda [args body]
+  Compilable
+  (compile [this]
+    (list 'fn (vec (:args this))
+          (compile (:body this)))))
+
+(defrecord let-block [bindings body]
+  Compilable
+  (compile [this]
+    (list 'let (vec (compile (:bindings this)))
+          (compile (:body this)))))
+
+(comment
+  (compile (->let-block ['a 3 'b (->fn-call '+ [1 2])]
+                        '(+ a b)))
+  ;;
+  )
+;; Define specs for our custom types
+(s/def ::fn-call (s/keys :req-un [::f ::args]))
+(s/def ::const-def (s/keys :req-un [::name ::val]))
+(s/def ::sig-def (s/keys :req-un [::name ::expr]))
+(s/def ::fn-def (s/keys :req-un [::name ::lambda]))
+(s/def ::lambda (s/keys :req-un [::args ::body]))
+(s/def ::let-block (s/keys :req-un [::bindings ::body]))
+
+(declare parse)
+
+(defn parse-fn-call [expr]
+  (let [[f & args] expr]
+    (->fn-call (parse f) (mapv parse args))))
+
+(defn parse-const-def [expr]
+  (let [[_ name val] expr]
+    (->const-def name (parse val))))
+
+(defn parse-sig-def [expr]
+  (let [[_ name expr] expr]
+    (->sig-def name (parse expr))))
+
+(defn parse-fn-def [expr]
+  (let [[_ name lambda] expr]
+    (->fn-def name (parse lambda))))
+
+(defn parse-lambda [expr]
+  (let [[_ args body] expr]
+    (->lambda args (parse body))))
+
+(defn parse-let-block [expr]
+  (let [[_ bindings body] expr]
+    (->let-block (partition 2 (map parse bindings)) (parse body))))
+
+(defn parse [expr]
+  (cond
+    (integer? expr) expr
+    (float? expr) expr
+    (ratio? expr) expr
+    (string? expr) expr
+    (char? expr) expr
+    (symbol? expr) expr
+    (keyword? expr) expr
+    (boolean? expr) expr
+    (nil? expr) expr
+    (list? expr) (cond
+                   (= 'def (first expr)) (parse-const-def expr)
+                   (= 'defn (first expr)) (parse-fn-def expr)
+                   (= 'fn (first expr)) (parse-lambda expr)
+                   (= 'let (first expr)) (parse-let-block expr)
+                   :else (parse-fn-call expr))
+    (vector? expr) (mapv parse expr)
+    (map? expr) expr
+    (set? expr) expr
+    (instance? java.util.regex.Pattern expr) expr
+    :else (throw (ex-info "Unknown expression type" {:expr expr}))))
+
+(defprotocol Parseable
+  (parse [this]))
+
+(extend-protocol Parseable
+  Object
+  (parse [this] this)
+  clojure.lang.PersistentList
+  (parse [this] (parse (seq this)))
+  clojure.lang.PersistentVector
+  (parse [this] (mapv parse this))
+  clojure.lang.PersistentArrayMap
+  (parse [this] this)
+  clojure.lang.PersistentHashMap
+  (parse [this] this)
+  clojure.lang.PersistentHashSet
+  (parse [this] this))
+
+;;;;
 (def init-time-arg 't_0)
 
-(def id-sigfn (list 'clojure.core/fn [init-time-arg] init-time-arg))
+(def id-sigfn (->lambda 't 't))
 
-(defn fn? [e] (s/valid? :clojure.expr/fn e))
+(defn fn? [e] (instance? lambda e))
 
-(defn parse-fn [e]
-  (s/conform :clojure.expr/fn e))
+(defn fn-args [n]
+  (if (fn? n)
+    (:args n)
+    (throw (Exception. "argument is not a valid fn"))))
 
-(defn fn-args [e]
-  (->> e parse-fn :args))
+(defn fn-return-e [n]
+  (->> n :lambda :body last))
 
-(defn fn-return-e [e]
-  (->> e parse-fn :body last))
-
-(defn fn-bodies [e]
-  (->> e parse-fn :body))
+(defn fn-bodies [n]
+  (->> n :body))
 
 ;; (->clojure-fn {:args '[x y] :body ['(+ x y)]})
 
