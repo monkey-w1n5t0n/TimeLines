@@ -151,3 +151,6 @@
 
 (defn symbol-prepend [pre sym]
   (->> sym name (str pre) symbol))
+
+(defn throw-not-implemented! []
+  (throw (UnsupportedOperationException. "Function not yet implemented")))

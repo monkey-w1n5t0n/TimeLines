@@ -19,9 +19,10 @@
    [timelines.skija :as sk]
    [clojure.pprint :as pprint])
   (:import
-   [io.github.humbleui.skija Path Canvas PaintMode Typeface Font RRect
+   [io.github.humbleui.skija Path Canvas PaintMode Typeface Font ;; RRect
     ;; SkRect RRect
-    ]))
+    ]
+   [io.github.humbleui.types Rect RRect]))
 
 (sk/init)
 
@@ -63,7 +64,7 @@
     (->skija-impl [this]
       (if (and r (> r 0))
         (RRect/makeXYWH x y w h r)
-        (io.github.humbleui.skija.Rect/makeXYWH x y w h)))
+        (Rect/makeXYWH x y w h)))
 
     P-Drawable
     #_(draw-impl [this] (draw this @timelines.globals/*main-canvas))

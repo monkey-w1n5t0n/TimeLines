@@ -17,12 +17,14 @@
     ;; SurfaceColorFormat
     ;; SurfaceOrigin
     ]))
+
 #_(def memoized-load-typeface
     (memoize (fn [path]
                (with-open [is (io/input-stream (io/resource path))]
                  (let [bytes (.readAllBytes is)]
                    (with-open [data (Data/makeFromBytes bytes)]
                      (Typeface/makeFromData data)))))))
+
 (defn load-typeface [path]
   (with-open [is (io/input-stream (io/resource path))]
     (let [bytes (.readAllBytes is)]

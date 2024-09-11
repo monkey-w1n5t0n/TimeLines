@@ -2,12 +2,13 @@
   (:require
    [nrepl.server :as nrepl]
    [timelines.globals :refer [*main-canvas screen-width screen-height]]
-   ;; [timelines.editor :as editor]
    [timelines.editor :as editor]
    [timelines.keyboard :as key]
    [timelines.utils :refer [color]])
   (:import
-   [io.github.humbleui.skija BackendRenderTarget ColorSpace DirectContext FramebufferFormat Surface SurfaceColorFormat SurfaceOrigin]
+   [io.github.humbleui.skija BackendRenderTarget ColorSpace DirectContext FramebufferFormat Surface SurfaceColorFormat SurfaceOrigin
+    Paint]
+   [io.github.humbleui.types Rect]
    [org.lwjgl.glfw Callbacks GLFW GLFWErrorCallback GLFWKeyCallbackI]
    [org.lwjgl.opengl GL GL11]
    [org.lwjgl.system MemoryUtil]))
@@ -45,7 +46,8 @@
 
 (defn -main [& args]
   (init-GLFW!)
-  (let [window (create-main-window! screen-width screen-height "Skija LWJGL Demo")]
+  (let [window
+        (create-main-window! screen-width screen-height "Skija LWJGL Demo")]
 
     (doto (Thread. #(clojure.main/main))
       (.start))
@@ -62,7 +64,8 @@
     (let [context (DirectContext/makeGL)
           fb-id   (GL11/glGetInteger 0x8CA6)
           [scale-x scale-y] (display-scale window)
-          target  (BackendRenderTarget/makeGL (* scale-x screen-width) (* scale-y screen-height) 0 8 fb-id FramebufferFormat/GR_GL_RGBA8)
+          ;; target  (BackendRenderTarget/makeGL (* scale-x screen-width) (* scale-y screen-height) 0 8 fb-id FramebufferFormat/GR_GL_RGBA8)
+          target  (BackendRenderTarget/makeGL (* scale-x 500) (* scale-y 500) 0 8 fb-id FramebufferFormat/GR_GL_RGBA8)
           surface (Surface/makeFromBackendRenderTarget context target SurfaceOrigin/BOTTOM_LEFT SurfaceColorFormat/RGBA_8888 (ColorSpace/getSRGB))
           canvas  (.getCanvas surface)]
       ;; Flipping coordinate system
@@ -70,20 +73,23 @@
       ;; (.translate canvas 0 (- screen-height))
       ;; Continue...
       (.scale canvas scale-x scale-y)
-      (reset! *main-canvas canvas)
+      ;; (reset! *main-canvas canvas)
       ;; Main loop
       (let [time-deltas (atom [])
             avg-fps (atom 0)
-            target-ns-per-frame (/ 1e9 target-fps)]
+            target-ns-per-frame (/ 1e9 target-fps)
+            editor-session (editor/init-session)]
         (loop []
           (when (not (GLFW/glfwWindowShouldClose window))
             (let [start-time (System/nanoTime)]
 
         ;; RENDER
-              (.clear canvas (color 0xFFFFFFFF))
+              (.clear canvas (color 0xFFFF0FFF))
               (let [layer (.save canvas)]
-                (editor/draw-screen)
-                (editor/draw-fps @avg-fps)
+                ;; (editor/draw-screen)
+                ;; (editor/draw-fps @avg-fps)
+                (.drawRect canvas (Rect/makeXYWH 100 100 100 100)
+                           (doto (Paint.) (.setColor (color 0xFF33CC33))))
                 (.restoreToCount canvas layer))
               (.flush context)
               (GLFW/glfwSwapBuffers window)

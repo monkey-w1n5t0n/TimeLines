@@ -1,6 +1,6 @@
 (ns timelines.draw
   (:import
-   [org.jetbrains.skija
+   [io.github.humbleui.skija
     BackendRenderTarget Canvas ColorSpace
     DirectContext FramebufferFormat Paint
     Rect Surface SurfaceColorFormat SurfaceOrigin]))

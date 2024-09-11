@@ -2,8 +2,12 @@
 
 (def dependencies
   '[[org.clojure/clojure "1.11.4"]
+    ;; [overtone/overtone "0.14.3199" :exclusions [net.java.dev.jna/jna]]
+    ;; [overtone/overtone "0.14.3199"]
+    [overtone "0.14.3199" :exclusions [net.java.dev.jna/jna]]
     [io.github.humbleui/skija-linux-x64 "0.116.2"]
     [io.github.humbleui/skija-shared "0.116.2"]
+    [io.github.humbleui/types "0.2.0"]
     ;; [org.lwjgl/lwjgl-glfw "3.3.2"]
     ;; [org.lwjgl/lwjgl "3.3.2"]
     [nrepl "1.1.0-alpha1"]
