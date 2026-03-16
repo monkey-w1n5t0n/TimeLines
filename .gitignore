@@ -9,3 +9,7 @@ pom.xml.asc
 /.nrepl-port
 /.clj-kondo/.cache
 /.lsp
+
+# Dolt database files (added by bd init)
+.dolt/
+*.db
